@@ -348,7 +348,8 @@
             apiKey: "AIzaSyC8-TWRr_vOMTv72scXxu-9l5uVHRVputo",
             authDomain: "group-saving-chama.firebaseapp.com",
             projectId: "group-saving-chama",
-            storageBucket: "group-saving-chama.firebasestorage.app",
+            // FIX 1: Corrected Firebase Storage Bucket
+            storageBucket: "group-saving-chama.appspot.com",
             messagingSenderId: "570981365925",
             appId: "1:570981365925:web:42422e51e4e02c6ab4f54c"
         });
@@ -1135,7 +1136,7 @@
                                     <input type="date" id="attendance-date" class="input-field" required>
                                 </div>
                                 <div>
-                                    <label for="attendance-time" class="block text-gray-700 text-sm font-bold mb-2">Meeting Time</label>
+                                    <label for="attendance-time" class="block text-gray-700 text-sm font-bold mb-2">Time</label>
                                     <input type="time" id="attendance-time" class="input-field" required>
                                 </div>
                                 <button type="submit" class="btn-primary w-full">Record Attendance</button>
