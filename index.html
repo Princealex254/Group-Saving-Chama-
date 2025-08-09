@@ -342,7 +342,22 @@
 
     <!-- Firebase SDKs and Main Application Logic -->
     <!-- Moved to the very bottom of <body> to ensure DOM is ready and reduce render-blocking -->
-    <script type="module">
+    
+<!-- Firebase Config Injection -->
+<script>
+  var __firebase_config = JSON.stringify({
+    apiKey: "AIzaSyC8-TWRr_vOMTv72scXxu-9l5uVHRVputo",
+    authDomain: "group-saving-chama.firebaseapp.com",
+    projectId: "group-saving-chama",
+    storageBucket: "group-saving-chama.firebasestorage.app",
+    messagingSenderId: "570981365925",
+    appId: "1:570981365925:web:42422e51e4e02c6ab4f54c"
+  });
+  var __app_id = "group-saving-chama";
+  var __initial_auth_token = null;
+</script>
+
+<script type="module">
         // Firebase imports must be at the top level of the module
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
         import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, sendPasswordResetEmail, onAuthStateChanged, signInWithCustomToken, signInAnonymously } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
