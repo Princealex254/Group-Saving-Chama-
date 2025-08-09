@@ -1,0 +1,2728 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Prince Alex Digital - Group Saving Chama</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Font Awesome for Icons (e.g., hamburger menu) -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <style>
+        /* Custom styles for the theme colors and fonts */
+        :root {
+            --primary-maroon: #800000;
+            --secondary-white: #ffffff;
+        }
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--secondary-white);
+            /* Add padding to the body to account for the fixed header */
+            padding-top: 64px; /* Adjust this value if header height changes (e.g., header height is ~64px based on p-4) */
+        }
+        header {
+            position: fixed;
+            top: 0;
+            width: 100%;
+            z-index: 100; /* Ensure header stays on top */
+            background-color: var(--primary-maroon); /* Ensure header background is solid for fixed position */
+        }
+        .bg-maroon {
+            background-color: var(--primary-maroon);
+        }
+        .text-maroon {
+            color: var(--primary-maroon);
+        }
+        .border-maroon {
+            border-color: var(--primary-maroon);
+        }
+        .btn-primary {
+            background-color: var(--primary-maroon);
+            color: var(--secondary-white);
+            padding: 0.75rem 1.5rem;
+            border-radius: 0.5rem;
+            transition: background-color 0.3s ease;
+        }
+        .btn-primary:hover {
+            background-color: #a00000; /* Slightly darker maroon on hover */
+        }
+        .link-maroon {
+            color: var(--primary-maroon);
+            text-decoration: none;
+        }
+        .link-maroon:hover {
+            text-decoration: underline;
+        }
+        .input-field {
+            padding: 0.75rem 1rem;
+            border: 1px solid #ccc;
+            border-radius: 0.5rem;
+            width: 100%;
+            box-sizing: border-box; /* Ensures padding doesn't increase total width */
+        }
+        .message-box {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background-color: #4CAF50; /* Green for success */
+            color: white;
+            padding: 15px;
+            border-radius: 8px;
+            z-index: 1000;
+            opacity: 0;
+            transition: opacity 0.5s ease-in-out;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+        }
+        .message-box.error {
+            background-color: #f44336; /* Red for error */
+        }
+        .message-box.show {
+            opacity: 1;
+        }
+        /* Specific styles for scrollable sections in dashboard */
+        .scroll-y {
+            max-height: 300px; /* Adjust as needed */
+            overflow-y: auto;
+        }
+        .table-auto {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        .table-auto th, .table-auto td {
+            border: 1px solid #e2e8f0;
+            padding: 0.75rem;
+            text-align: left;
+        }
+        .table-auto th {
+            background-color: var(--primary-maroon);
+            color: var(--secondary-white);
+        }
+        /* Styles for the dynamic background carousel */
+        #home-hero-background-carousel {
+            transition: background-image 1s ease-in-out; /* Smooth transition between images */
+            background-size: cover;
+            background-position: center;
+        }
+
+        /* Floating Chat Button */
+        .chat-button {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background-color: var(--primary-maroon);
+            color: white;
+            border-radius: 50%;
+            width: 60px;
+            height: 60px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 24px;
+            cursor: pointer;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+            z-index: 900; /* Below message box, above most other content */
+            transition: transform 0.2s ease-in-out;
+        }
+        .chat-button:hover {
+            transform: scale(1.1);
+        }
+
+        /* Chat Modal */
+        .chat-modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.6);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 950;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.3s ease-in-out, visibility 0.3s ease-in-out;
+        }
+        .chat-modal-overlay.show {
+            opacity: 1;
+            visibility: visible;
+        }
+        .chat-modal-content {
+            background-color: #fff;
+            border-radius: 12px;
+            width: 90%;
+            max-width: 400px;
+            max-height: 80%;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 8px 16px rgba(0, 0, 0, 0.4);
+            overflow: hidden; /* Ensures rounded corners on inner content */
+            transform: translateY(20px);
+            opacity: 0;
+            transition: transform 0.3s ease-in-out, opacity 0.3s ease-in-out;
+        }
+        .chat-modal-overlay.show .chat-modal-content {
+            transform: translateY(0);
+            opacity: 1;
+        }
+        .chat-header {
+            background-color: var(--primary-maroon);
+            color: white;
+            padding: 12px 16px;
+            font-size: 1.25rem;
+            font-weight: bold;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-top-left-radius: 12px;
+            border-top-right-radius: 12px;
+        }
+        .chat-close-button {
+            background: none;
+            border: none;
+            color: white;
+            font-size: 1.5rem;
+            cursor: pointer;
+            padding: 4px;
+            border-radius: 50%;
+            transition: background-color 0.2s;
+        }
+        .chat-close-button:hover {
+            background-color: rgba(255, 255, 255, 0.2);
+        }
+        .chat-messages {
+            flex-grow: 1;
+            padding: 15px;
+            overflow-y: auto;
+            background-color: #f0f2f5;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        .chat-message {
+            max-width: 80%;
+            padding: 8px 12px;
+            border-radius: 15px;
+            word-wrap: break-word;
+            font-size: 0.9rem;
+        }
+        .chat-message.user {
+            align-self: flex-end;
+            background-color: #DCF8C6; /* Light green for user messages */
+            color: #333;
+            border-bottom-right-radius: 2px;
+        }
+        .chat-message.admin {
+            align-self: flex-start;
+            background-color: #E2E2E2; /* Light gray for admin messages */
+            color: #333;
+            border-bottom-left-radius: 2px;
+        }
+        .chat-input-area {
+            display: flex;
+            padding: 15px;
+            border-top: 1px solid #eee;
+            background-color: #fff;
+            border-bottom-left-radius: 12px;
+            border-bottom-right-radius: 12px;
+        }
+        .chat-input-area input {
+            flex-grow: 1;
+            border: 1px solid #ddd;
+            border-radius: 20px;
+            padding: 10px 15px;
+            margin-right: 10px;
+            font-size: 0.95rem;
+        }
+        .chat-input-area button {
+            background-color: var(--primary-maroon);
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 1.2rem;
+            cursor: pointer;
+            transition: background-color 0.2s ease;
+        }
+        .chat-input-area button:hover {
+            background-color: #a00000;
+        }
+    </style>
+</head>
+<body class="flex flex-col min-h-screen">
+    <!-- Header -->
+    <header class="bg-maroon text-white p-4 shadow-md">
+        <nav class="container mx-auto flex justify-between items-center">
+            <div class="flex items-center space-x-2">
+                <!-- Prince Alex Digital Logo Placeholder -->
+                <img src="https://placehold.co/40x40/ffffff/800000?text=PAD" alt="Prince Alex Digital Logo" class="rounded-full">
+                <span class="text-xl font-bold">Prince Alex Digital</span>
+            </div>
+            <div class="hidden md:flex space-x-6">
+                <a href="#home" class="hover:text-gray-300 transition-colors" onclick="window.renderPage('home')">Home</a>
+                <a href="#about" class="hover:text-gray-300 transition-colors" onclick="window.renderPage('about')">About</a>
+                <a href="#services" class="hover:text-gray-300 transition-colors" onclick="window.renderPage('services')">Services</a>
+                <a href="#signup" class="hover:text-gray-300 transition-colors" onclick="window.renderPage('signup')">Sign Up</a>
+                <a href="#login" class="hover:text-gray-300 transition-colors" onclick="window.renderPage('login')">Login</a>
+                <a href="#dashboard" id="dashboard-link" class="hidden hover:text-gray-300 transition-colors" onclick="window.renderPage('dashboard')">Dashboard</a>
+                <button id="logout-button" class="hidden hover:text-gray-300 transition-colors" onclick="window.handleLogout()">Logout</button>
+            </div>
+            <div class="md:hidden">
+                <button id="hamburger-menu" class="text-white focus:outline-none">
+                    <i class="fas fa-bars text-2xl"></i>
+                </button>
+            </div>
+        </nav>
+        <!-- Mobile Menu -->
+        <div id="mobile-menu" class="hidden md:hidden bg-maroon mt-2 rounded-md shadow-lg py-2">
+            <a href="#home" class="block px-4 py-2 text-white hover:bg-red-700" onclick="window.renderPage('home'); window.toggleMobileMenu()">Home</a>
+            <a href="#about" class="block px-4 py-2 text-white hover:bg-red-700" onclick="window.renderPage('about'); window.toggleMobileMenu()">About</a>
+            <a href="#services" class="block px-4 py-2 text-white hover:bg-red-700" onclick="window.renderPage('services'); window.toggleMobileMenu()">Services</a>
+            <a href="#signup" class="block px-4 py-2 text-white hover:bg-red-700" onclick="window.renderPage('signup'); window.toggleMobileMenu()">Sign Up</a>
+            <a href="#login" class="block px-4 py-2 text-white hover:bg-red-700" onclick="window.renderPage('login'); window.toggleMobileMenu()">Login</a>
+            <a href="#dashboard-mobile" id="dashboard-link-mobile" class="hidden block px-4 py-2 text-white hover:bg-red-700" onclick="window.renderPage('dashboard'); window.toggleMobileMenu()">Dashboard</a>
+            <button id="logout-button-mobile" class="hidden w-full text-left px-4 py-2 text-white hover:bg-red-700" onclick="window.handleLogout(); window.toggleMobileMenu()">Logout</button>
+        </div>
+    </header>
+
+    <!-- Main Content Area -->
+    <main id="app-content" class="flex-grow container mx-auto p-6 md:p-8">
+        <!-- Content will be dynamically loaded here -->
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-maroon text-white p-6 md:p-8 text-center mt-auto shadow-inner">
+        <div class="container mx-auto">
+            <p class="text-lg mb-2">Powered by Prince Alex Digital</p>
+            <div class="flex flex-col md:flex-row justify-center items-center space-y-2 md:space-y-0 md:space-x-6">
+                <a href="mailto:princealexdigital@gmail.com" class="link-maroon text-white hover:underline">
+                    <i class="fas fa-envelope mr-1"></i>princealexdigital@gmail.com
+                </a>
+                <a href="tel:+254700000000" class="link-maroon text-white hover:underline">
+                    <i class="fas fa-phone mr-1"></i>+254 700 000 000
+                </a>
+                <a href="https://www.princealex.pro" target="_blank" class="link-maroon text-white hover:underline">
+                    <i class="fas fa-globe mr-1"></i>www.princealex.pro
+                </a>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Message Box -->
+    <div id="message-box" class="message-box"></div>
+
+    <!-- Floating Chat Button -->
+    <button class="chat-button" id="chat-button">
+        <i class="fas fa-comments"></i>
+    </button>
+
+    <!-- Chat Modal -->
+    <div id="chat-modal-overlay" class="chat-modal-overlay">
+        <div class="chat-modal-content">
+            <div class="chat-header">
+                <span>Support Chat</span>
+                <button class="chat-close-button" id="chat-close-button"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="chat-messages" id="chat-messages">
+                <!-- Chat messages will be loaded here -->
+            </div>
+            <div class="chat-input-area">
+                <input type="text" id="chat-input" placeholder="Type your message..." autocomplete="off">
+                <button id="chat-send-button"><i class="fas fa-paper-plane"></i></button>
+            </div>
+        </div>
+    </div>
+
+
+    <!-- Firebase SDKs -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+        import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, sendPasswordResetEmail, onAuthStateChanged, signInWithCustomToken, signInAnonymously } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+        import { getFirestore, doc, setDoc, getDoc, updateDoc, collection, addDoc, query, orderBy, onSnapshot, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+        // Global Firebase variables
+        let app;
+        let auth;
+        let db;
+        let currentUserId = null;
+        let currentUserName = null;
+        let currentUserData = {}; // To store full user profile data
+
+        // Image carousel variables
+        // IMPORTANT: Replace these placeholder URLs with the actual public URLs of your hosted images.
+        // Images for websites must be hosted online (e.g., Firebase Storage, Imgur, your own server)
+        // as local file paths (like C:/Users/...) cannot be accessed by web browsers due to security restrictions.
+        const imageArray = [
+            'https://placehold.co/1200x600/800000/ffffff?text=Image+One',
+            'https://placehold.co/1200x600/800000/ffffff?text=Image+Two',
+            'https://placehold.co/1200x600/800000/ffffff?text=Image+Three',
+            'https://placehold.co/1200x600/800000/ffffff?text=Image+Four'
+        ];
+        let currentImageIndex = 0;
+        let carouselIntervalId; // To store the interval ID for clearing
+
+        // Message Box function
+        function showMessage(message, type = 'success') {
+            const msgBox = document.getElementById('message-box');
+            msgBox.textContent = message;
+            msgBox.className = `message-box ${type}`; // Reset classes
+            setTimeout(() => msgBox.classList.add('show'), 10); // Trigger transition
+            setTimeout(() => {
+                msgBox.classList.remove('show');
+                setTimeout(() => msgBox.className = 'message-box', 500); // Hide after transition
+            }, 3000); // Message visible for 3 seconds
+        }
+
+        // Function to update the background image for the carousel
+        function updateHeroBackground() {
+            const heroBackground = document.getElementById('home-hero-background-carousel');
+            if (heroBackground) {
+                heroBackground.style.backgroundImage = `url('${imageArray[currentImageIndex]}')`;
+                currentImageIndex = (currentImageIndex + 1) % imageArray.length;
+            }
+        }
+
+        // Function to start the image carousel
+        function startImageCarousel() {
+            // Clear any existing interval to prevent multiple carousels running
+            if (carouselIntervalId) {
+                clearInterval(carouselIntervalId);
+            }
+            updateHeroBackground(); // Set initial background
+            carouselIntervalId = setInterval(updateHeroBackground, 7000); // Change image every 7 seconds
+        }
+
+        // Function to stop the image carousel
+        function stopImageCarousel() {
+            if (carouselIntervalId) {
+                clearInterval(carouselIntervalId);
+                carouselIntervalId = null;
+            }
+        }
+
+
+        // Initialize Firebase with the provided configuration
+        // Using __firebase_config from the environment, not hardcoded.
+        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+        const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+
+
+        app = initializeApp(firebaseConfig);
+        auth = getAuth(app);
+        db = getFirestore(app);
+
+        // Handle initial authentication state
+        if (initialAuthToken) {
+            signInWithCustomToken(auth, initialAuthToken)
+                .then((userCredential) => {
+                    // Signed in successfully
+                    console.log("Signed in with custom token:", userCredential.user.uid);
+                })
+                .catch((error) => {
+                    console.error("Error signing in with custom token:", error.message);
+                    signInAnonymously(auth).catch(e => console.error("Anonymous sign-in failed:", e));
+                });
+        } else {
+            signInAnonymously(auth).catch(e => console.error("Anonymous sign-in failed:", e));
+        }
+
+        // Authentication state change listener
+        onAuthStateChanged(auth, async (user) => {
+            const dashboardLink = document.getElementById('dashboard-link');
+            const logoutButton = document.getElementById('logout-button');
+            const dashboardLinkMobile = document.getElementById('dashboard-link-mobile');
+            const logoutButtonMobile = document.getElementById('logout-button-mobile');
+
+            if (user) {
+                currentUserId = user.uid;
+                dashboardLink.classList.remove('hidden');
+                logoutButton.classList.remove('hidden');
+                dashboardLinkMobile.classList.remove('hidden');
+                logoutButtonMobile.classList.remove('hidden');
+
+                // Fetch user's full name for dashboard welcome
+                const userProfileRef = doc(db, `artifacts/${appId}/users/${currentUserId}/user_profile`, currentUserId);
+                try {
+                    const userDoc = await getDoc(userProfileRef);
+                    if (userDoc.exists()) {
+                        currentUserData = userDoc.data();
+                        currentUserName = currentUserData.fullName || user.email;
+                    } else {
+                        // Create a basic profile if none exists (e.g., for anonymous sign-in without full signup)
+                        currentUserData = {
+                            fullName: user.email,
+                            email: user.email,
+                            phone: 'N/A',
+                            nationalId: 'N/A',
+                            contribution_balance: 0,
+                            loan_balance: 0,
+                            next_meeting_date: "To be announced",
+                            status: "pending_approval" // Default status for new users if profile doesn't exist
+                        };
+                        currentUserName = user.email;
+                        await setDoc(userProfileRef, currentUserData); // Save the basic profile
+                    }
+                } catch (error) {
+                    console.error("Error fetching user profile:", error);
+                    currentUserData = {
+                        fullName: user.email,
+                        email: user.email,
+                        phone: 'N/A',
+                        nationalId: 'N/A',
+                        contribution_balance: 0,
+                        loan_balance: 0,
+                        next_meeting_date: "To be announced",
+                        status: "pending_approval" // Default status on error
+                    };
+                    currentUserName = user.email;
+                }
+                // If currently on dashboard but not fully loaded, re-render
+                if (window.location.hash.includes('dashboard')) {
+                    window.renderPage('dashboard');
+                }
+                // Load chat history when user is authenticated and chat modal is open
+                if (chatModalOverlay.classList.contains('show')) {
+                    loadChatHistory();
+                }
+            } else {
+                currentUserId = null;
+                currentUserName = null;
+                currentUserData = {}; // Clear user data on logout
+                dashboardLink.classList.add('hidden');
+                logoutButton.classList.add('hidden');
+                dashboardLinkMobile.classList.add('hidden');
+                logoutButtonMobile.classList.add('hidden');
+                // If user logs out or session expires, redirect from dashboard
+                if (window.location.hash.includes('dashboard')) {
+                    window.renderPage('login');
+                }
+                // Clear chat messages if user logs out
+                document.getElementById('chat-messages').innerHTML = '';
+                // Unsubscribe from chat listener on logout
+                if (unsubscribeChat) {
+                    unsubscribeChat();
+                }
+            }
+        });
+
+
+        // Page Content Definitions
+        const pages = {
+            home: `
+                <section class="text-center py-12 md:py-24 text-white rounded-lg shadow-xl relative overflow-hidden">
+                    <div id="home-hero-background-carousel" class="absolute inset-0"></div>
+                    <div class="absolute inset-0 bg-black opacity-50"></div> <!-- Overlay for text readability -->
+                    <div class="relative z-10">
+                        <h1 class="text-3xl md:text-5xl font-extrabold mb-6 animate-fade-in-down">Empower Your Financial Future with Our Group Saving Chama!</h1>
+                        <p class="text-lg md:text-xl mb-8 max-w-3xl mx-auto animate-fade-in-up">
+                            Join a thriving community focused on **savings pooling, accessible loans, and smart investment opportunities**.
+                            Achieve your financial goals faster, together!
+                        </p>
+                        <button class="btn-primary text-lg md:text-xl transform hover:scale-105 transition-transform duration-300" onclick="window.renderPage('signup')">
+                            Join Us Today!
+                        </button>
+                    </div>
+                </section>
+
+                <section class="py-12 md:py-16">
+                    <h2 class="text-2xl md:text-4xl font-bold text-maroon text-center mb-10">Why Join Our Chama?</h2>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+                        <div class="bg-white p-6 rounded-lg shadow-lg border-t-4 border-maroon transform hover:scale-105 transition-transform duration-300">
+                            <h3 class="text-xl font-semibold mb-3 text-maroon">Collective Savings</h3>
+                            <p class="text-gray-700">Pool resources with like-minded individuals to grow your savings much faster than traditional methods.</p>
+                        </div>
+                        <div class="bg-white p-6 rounded-lg shadow-lg border-t-4 border-maroon transform hover:scale-105 transition-transform duration-300">
+                            <h3 class="text-xl font-semibold mb-3 text-maroon">Easy Access Loans</h3>
+                            <p class="text-gray-700">Access affordable loans from the group's pooled funds, often with better terms than conventional banks.</p>
+                        </div>
+                        <div class="bg-white p-6 rounded-lg shadow-lg border-t-4 border-maroon transform hover:scale-105 transition-transform duration-300">
+                            <h3 class="text-xl font-semibold mb-3 text-maroon">Investment Opportunities</h3>
+                            <p class="text-gray-700">Explore collective investment ventures, diversifying your portfolio and maximizing returns as a group.</p>
+                        </div>
+                    </div>
+                </section>
+            `,
+            about: `
+                <section class="py-8 md:py-12">
+                    <h1 class="text-3xl md:text-4xl font-bold text-maroon text-center mb-8">About Prince Alex Digital Group Saving Chama</h1>
+                    <div class="bg-white p-6 rounded-lg shadow-lg">
+                        <h2 class="text-2xl font-semibold text-maroon mb-4">What is Prince Alex Digital Group Saving Chama?</h2>
+                        <p class="text-gray-700 mb-4">
+                            The Prince Alex Digital Group Saving Chama, also known as a rotating savings and credit association (ROSCA), is a traditional
+                            self-help group where members regularly contribute a fixed amount of money to a common fund.
+                            This fund is then given to one member at a time on a rotating basis. Beyond simple savings,
+                            our Chama aims to foster financial literacy, provide mutual support, and explore collective
+                            investment opportunities for the benefit of all members.
+                        </p>
+
+                        <h2 class="text-2xl font-semibold text-maroon mb-4">Our Rules & Operation</h2>
+                        <ul class="list-disc list-inside text-gray-700 mb-4 space-y-2">
+                            <li><strong>Membership:</strong> Open to individuals committed to financial growth and community support.</li>
+                            <li><strong>Contributions:</strong> Each member contributes a fixed amount (e.g., KES 1,000) weekly/monthly on a pre-agreed date.</li>
+                            <li><strong>Disbursement:</strong> The accumulated fund is disbursed to one member in rotation. The order is agreed upon by the group.</li>
+                            <li><strong>Loans:</strong> Members can apply for loans from the Chama's fund. Loan terms, interest rates, and repayment schedules are determined by group consensus.</li>
+                            <li><strong>Meetings:</strong> Regular meetings (e.g., monthly) are held to discuss finances, approve loans, admit new members, and plan investments.</li>
+                            <li><strong>Transparency:</strong> All financial transactions are recorded and made accessible to members.</li>
+                            <li><strong>Investment:</strong> A portion of the Chama's funds can be set aside for collective investments as agreed by members.</li>
+                        </ul>
+
+                        <h2 class="2xl font-semibold text-maroon mb-4">Benefits of Joining</h2>
+                        <ul class="list-disc list-inside text-gray-700 space-y-2">
+                            <li><strong>Financial Discipline:</strong> Encourages regular saving habits.</li>
+                            <li><strong>Access to Capital:</strong> Provides a source of funds for personal projects or emergencies without complex bank procedures.</li>
+                            <li><strong>Investment Opportunities:</strong> Participate in larger investments than you might be able individually.</li>
+                            <li><strong>Networking:</strong> Connect with a supportive community and learn from diverse financial experiences.</li>
+                            <li><strong>Financial Literacy:</strong> Learn about managing finances, budgeting, and investment strategies.</li>
+                        </ul>
+                    </div>
+                </section>
+            `,
+            services: `
+                <section class="py-8 md:py-12">
+                    <h1 class="text-3xl md:text-4xl font-bold text-maroon text-center mb-8">Our Services</h1>
+                    <p class="text-center text-gray-700 mb-8 max-w-2xl mx-auto">
+                        We offer a suite of services designed to make managing your group savings and financial goals effortless and transparent.
+                        Please log in to access these features.
+                    </p>
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                        <div class="bg-white p-6 rounded-lg shadow-lg border-t-4 border-maroon">
+                            <h3 class="text-xl font-semibold text-maroon mb-3">Savings Tracking</h3>
+                            <p class="text-gray-700 mb-4">
+                                Keep a real-time track of your contributions and the total Chama balance.
+                                View your individual savings history and progress towards your financial goals.
+                            </p>
+                            <button class="btn-primary w-full" onclick="window.renderPage('login')">Access Savings</button>
+                        </div>
+                        <div class="bg-white p-6 rounded-lg shadow-lg border-t-4 border-maroon">
+                            <h3 class="text-xl font-semibold text-maroon mb-3">Loan Requests</h3>
+                            <p class="text-gray-700 mb-4">
+                                Apply for loans directly from the Chama fund with competitive rates and flexible repayment plans.
+                                Track the status of your loan applications.
+                            </p>
+                            <button class="btn-primary w-full" onclick="window.renderPage('login')">Request Loan</button>
+                        </div>
+                        <div class="bg-white p-6 rounded-lg shadow-lg border-t-4 border-maroon">
+                            <h3 class="text-xl font-semibold text-maroon mb-3">Member Contributions</h3>
+                            <p class="text-gray-700 mb-4">
+                                Easily make your scheduled contributions to the Chama. Our system ensures your payments are
+                                securely recorded and reflected in your balance.
+                            </p>
+                            <button class="btn-primary w-full" onclick="window.renderPage('login')">Make Contribution</button>
+                        </div>
+                        <div class="bg-white p-6 rounded-lg shadow-lg border-t-4 border-maroon">
+                            <h3 class="text-xl font-semibold text-maroon mb-3">Meeting Schedules</h3>
+                            <p class="text-gray-700 mb-4">
+                                Stay informed about upcoming Chama meetings. Access agendas, minutes from past meetings,
+                                and important announcements to stay engaged.
+                            </p>
+                            <button class="btn-primary w-full" onclick="window.renderPage('login')">View Schedule</button>
+                        </div>
+                        <div class="bg-white p-6 rounded-lg shadow-lg border-t-4 border-maroon">
+                            <h3 class="text-xl font-semibold text-maroon mb-3">Financial Statements</h3>
+                            <p class="text-gray-700 mb-4">
+                                Access detailed personal and group financial statements. Understand your financial standing
+                                within the Chama and view overall group performance.
+                            </p>
+                            <button class="btn-primary w-full" onclick="window.renderPage('login')">View Statements</button>
+                        </div>
+                        <div class="bg-white p-6 rounded-lg shadow-lg border-t-4 border-maroon">
+                            <h3 class="text-xl font-semibold text-maroon mb-3">Profile Management</h3>
+                            <p class="text-gray-700 mb-4">
+                                Easily update your personal information, contact details, and preferences to ensure your
+                                records are always current and accurate.
+                            </p>
+                            <button class="btn-primary w-full" onclick="window.renderPage('login')">Manage Profile</button>
+                        </div>
+                    </div>
+                </section>
+            `,
+            signup: `
+                <section class="py-8 md:py-12 flex justify-center items-center">
+                    <div class="bg-white p-8 rounded-lg shadow-xl w-full max-w-md border-t-4 border-maroon">
+                        <h1 class="text-3xl font-bold text-maroon text-center mb-6">Create Your Account</h1>
+                        <form id="signup-form" class="space-y-4">
+                            <div>
+                                <label for="signup-full-name" class="block text-gray-700 text-sm font-bold mb-2">Full Name</label>
+                                <input type="text" id="signup-full-name" class="input-field" placeholder="John Doe" required>
+                            </div>
+                            <div>
+                                <label for="signup-email" class="block text-gray-700 text-sm font-bold mb-2">Email</label>
+                                <input type="email" id="signup-email" class="input-field" placeholder="you@example.com" required>
+                            </div>
+                            <div>
+                                <label for="signup-phone" class="block text-gray-700 text-sm font-bold mb-2">Phone Number</label>
+                                <input type="tel" id="signup-phone" class="input-field" placeholder="+254 7XX XXX XXX" required pattern="^\\+?\\d{10,14}$">
+                            </div>
+                            <div>
+                                <label for="signup-national-id" class="block text-gray-700 text-sm font-bold mb-2">National ID</label>
+                                <input type="text" id="signup-national-id" class="input-field" placeholder="12345678" required>
+                            </div>
+                            <div>
+                                <label for="signup-password" class="block text-gray-700 text-sm font-bold mb-2">Password</label>
+                                <input type="password" id="signup-password" class="input-field" placeholder="Minimum 6 characters" required minlength="6">
+                            </div>
+                            <div>
+                                <label for="signup-confirm-password" class="block text-gray-700 text-sm font-bold mb-2">Confirm Password</label>
+                                <input type="password" id="signup-confirm-password" class="input-field" placeholder="Re-enter password" required>
+                            </div>
+                            <button type="submit" class="btn-primary w-full">Sign Up</button>
+                        </form>
+                        <p class="text-center text-gray-600 text-sm mt-4">
+                            Already have an account? <a href="#login" class="link-maroon" onclick="window.renderPage('login')">Log In</a>
+                        </p>
+                    </div>
+                </section>
+            `,
+            'pending-approval': `
+                <section class="py-8 md:py-12 flex justify-center items-center">
+                    <div class="bg-white p-8 rounded-lg shadow-xl w-full max-w-md border-t-4 border-maroon text-center">
+                        <h1 class="text-3xl font-bold text-maroon mb-4">Account Pending Approval</h1>
+                        <p class="text-gray-700 mb-6">
+                            Thank you for signing up! Your information has been successfully submitted and is currently
+                            under review by the Chama administrators.
+                        </p>
+                        <p class="text-gray-700 font-semibold mb-4">
+                            You will receive an email notification once your account has been approved.
+                        </p>
+                        <h2 class="text-2xl font-bold text-maroon mb-4">Requirements for Service Access:</h2>
+                        <p class="text-gray-700 mb-4">
+                            Once your account is approved, you will need to ensure the following to fully utilize all Chama services:
+                        </p>
+                        <ul class="list-disc list-inside text-gray-700 text-left mx-auto max-w-xs space-y-2">
+                            <li>Complete your initial **Chama contribution**.</li>
+                            <li>Attend the **next scheduled Chama meeting** (physical or virtual).</li>
+                            <li>Familiarize yourself with the **Chama Constitution and Bylaws**.</li>
+                            <li>Verify your **contact details** for seamless communication.</li>
+                        </ul>
+                        <p class="text-gray-600 text-sm mt-6">
+                            If you have any questions, please contact us at princealexdigital@gmail.com.
+                        </p>
+                    </div>
+                </section>
+            `,
+            login: `
+                <section class="py-8 md:py-12 flex justify-center items-center">
+                    <div class="bg-white p-8 rounded-lg shadow-xl w-full max-w-md border-t-4 border-maroon">
+                        <h1 class="text-3xl font-bold text-maroon text-center mb-6">Login to Your Account</h1>
+                        <form id="login-form" class="space-y-4">
+                            <div>
+                                <label for="login-email" class="block text-gray-700 text-sm font-bold mb-2">Email</label>
+                                <input type="email" id="login-email" class="input-field" placeholder="you@example.com" required>
+                            </div>
+                            <div>
+                                <label for="login-password" class="block text-gray-700 text-sm font-bold mb-2">Password</label>
+                                <input type="password" id="login-password" class="input-field" placeholder="Your password" required>
+                            </div>
+                            <button type="submit" class="btn-primary w-full">Login</button>
+                        </form>
+                        <p class="text-center text-gray-600 text-sm mt-4">
+                            <a href="#forgot-password" class="link-maroon" onclick="window.renderPage('forgot-password')">Forgot Password?</a>
+                        </p>
+                        <p class="text-center text-gray-600 text-sm mt-2">
+                            Don't have an account? <a href="#signup" class="link-maroon" onclick="window.renderPage('signup')">Sign Up</a>
+                        </p>
+                    </div>
+                </section>
+            `,
+            'forgot-password': `
+                <section class="py-8 md:py-12 flex justify-center items-center">
+                    <div class="bg-white p-8 rounded-lg shadow-xl w-full max-w-md border-t-4 border-maroon">
+                        <h1 class="text-3xl font-bold text-maroon text-center mb-6">Reset Password</h1>
+                        <p class="text-gray-700 text-center mb-6">Enter your email address to receive a password reset link.</p>
+                        <form id="forgot-password-form" class="space-y-4">
+                            <div>
+                                <label for="reset-email" class="block text-gray-700 text-sm font-bold mb-2">Email</label>
+                                <input type="email" id="reset-email" class="input-field" placeholder="you@example.com" required>
+                            </div>
+                            <button type="submit" class="btn-primary w-full">Send Reset Link</button>
+                        </form>
+                        <p class="text-center text-gray-600 text-sm mt-4">
+                            Remembered your password? <a href="#login" class="link-maroon" onclick="window.renderPage('login')">Log In</a>
+                        </p>
+                    </div>
+                </section>
+            `,
+            dashboard: `
+                <section class="py-8 md:py-12">
+                    <h1 class="text-3xl md:text-4xl font-bold text-maroon text-center mb-8">
+                        Welcome, <span id="dashboard-user-name">Member!</span>
+                    </h1>
+                    <div class="bg-white p-6 rounded-lg shadow-xl border-t-4 border-maroon">
+                        <p class="text-center text-gray-600 text-sm mb-6">Your User ID: <span id="display-user-id">Loading...</span></p>
+
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+                            <div class="bg-gray-100 p-4 rounded-lg shadow-md border-l-4 border-maroon">
+                                <h3 class="text-xl font-semibold text-maroon mb-2">Contribution Balance</h3>
+                                <p class="text-3xl font-bold text-gray-800" id="contribution-balance">KSh 0.00</p>
+                            </div>
+                            <div class="bg-gray-100 p-4 rounded-lg shadow-md border-l-4 border-maroon">
+                                <h3 class="text-xl font-semibold text-maroon mb-2">Loan Balance</h3>
+                                <p class="text-3xl font-bold text-gray-800" id="loan-balance">KSh 0.00</p>
+                            </div>
+                        </div>
+
+                        <div class="text-center mb-8">
+                            <h3 class="text-xl font-semibold text-maroon mb-2">Next Meeting Date</h3>
+                            <p class="text-2xl font-bold text-gray-800" id="next-meeting-date">Not Scheduled</p>
+                        </div>
+
+                        <!-- New Section for Data Backup & Security Info -->
+                        <div class="bg-gray-100 p-4 rounded-lg shadow-md border-l-4 border-gray-500 mb-8">
+                            <h3 class="text-xl font-semibold text-gray-700 mb-2">Data Security & Backups</h3>
+                            <p class="text-gray-700 text-sm">
+                                Your financial data is protected with automatic backups and secure SSL encryption for all communications.
+                                We prioritize the safety and integrity of your information.
+                            </p>
+                        </div>
+
+                        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+                            <button class="btn-primary text-lg flex items-center justify-center space-x-2" onclick="window.renderDashboardSubpage('make-contribution')">
+                                <i class="fas fa-money-bill-wave"></i> <span>Make Contribution</span>
+                            </button>
+                            <button class="btn-primary text-lg flex items-center justify-center space-x-2" onclick="window.renderDashboardSubpage('request-loan')">
+                                <i class="fas fa-hand-holding-usd"></i> <span>Request Loan</span>
+                            </button>
+                            <button class="btn-primary text-lg flex items-center justify-center space-x-2" onclick="window.renderDashboardSubpage('view-statements')">
+                                <i class="fas fa-file-invoice"></i> <span>View Statements</span>
+                            </button>
+                            <button class="btn-primary text-lg flex items-center justify-center space-x-2" onclick="window.renderDashboardSubpage('update-profile')">
+                                <i class="fas fa-user-edit"></i> <span>Update Profile</span>
+                            </button>
+                            <button class="btn-primary text-lg flex items-center justify-center space-x-2" onclick="window.renderDashboardSubpage('contribution-history')">
+                                <i class="fas fa-history"></i> <span>Contribution History</span>
+                            </button>
+                            <button class="btn-primary text-lg flex items-center justify-center space-x-2" onclick="window.renderDashboardSubpage('loan-history')">
+                                <i class="fas fa-money-check-alt"></i> <span>Loan History</span>
+                            </button>
+                            <button class="btn-primary text-lg flex items-center justify-center space-x-2" onclick="window.renderDashboardSubpage('group-overview')">
+                                <i class="fas fa-chart-pie"></i> <span>Group Overview</span>
+                            </button>
+                            <button class="btn-primary text-lg flex items-center justify-center space-x-2" onclick="window.renderDashboardSubpage('meetings')">
+                                <i class="fas fa-calendar-alt"></i> <span>Meetings</span>
+                            </button>
+                            <button class="btn-primary text-lg flex items-center justify-center space-x-2" onclick="window.renderDashboardSubpage('fines')">
+                                <i class="fas fa-gavel"></i> <span>Fines & Penalties</span>
+                            </button>
+                            <button class="btn-primary text-lg flex items-center justify-center space-x-2" onclick="window.renderDashboardSubpage('investments')">
+                                <i class="fas fa-chart-line"></i> <span>Investments</span>
+                            </button>
+                            <!-- New buttons for new features -->
+                            <button class="btn-primary text-lg flex items-center justify-center space-x-2" onclick="window.renderDashboardSubpage('notifications')">
+                                <i class="fas fa-bell"></i> <span>Notifications</span>
+                            </button>
+                            <button class="btn-primary text-lg flex items-center justify-center space-x-2" onclick="window.renderDashboardSubpage('voting-polls')">
+                                <i class="fas fa-vote-yea"></i> <span>Voting & Polls</span>
+                            </button>
+                            <button class="btn-primary text-lg flex items-center justify-center space-x-2" onclick="window.renderDashboardSubpage('attendance')">
+                                <i class="fas fa-clipboard-check"></i> <span>Attendance</span>
+                            </button>
+                            <button class="btn-primary text-lg flex items-center justify-center space-x-2" onclick="window.renderDashboardSubpage('documents')">
+                                <i class="fas fa-folder-open"></i> <span>Documents</span>
+                            </button>
+                        </div>
+
+                        <div id="dashboard-subpage-content" class="mt-8 pt-8 border-t border-gray-200">
+                            <!-- Default content or sub-page content will load here -->
+                            <p class="text-center text-gray-600">Select an option above to manage your Chama activities.</p>
+                        </div>
+                    </div>
+                </section>
+            `,
+        };
+
+        const dashboardSubpages = {
+            'make-contribution': `
+                <h2 class="text-2xl font-bold text-maroon mb-6 text-center">Make A Contribution</h2>
+                <div class="bg-gray-50 p-6 rounded-lg shadow-md">
+                    <form id="contribution-form" class="space-y-4">
+                        <div>
+                            <label for="contribution-amount" class="block text-gray-700 text-sm font-bold mb-2">Amount (KSh)</label>
+                            <input type="number" id="contribution-amount" class="input-field" placeholder="e.g., 1000" required min="1">
+                        </div>
+                        <div>
+                            <label for="payment-method" class="block text-gray-700 text-sm font-bold mb-2">Payment Method</label>
+                            <select id="payment-method" class="input-field" required>
+                                <option value="">Select Method</option>
+                                <option value="mpesa">M-Pesa</option>
+                                <option value="bank_transfer">Bank Transfer</option>
+                                <option value="cash">Cash</option>
+                            </select>
+                        </div>
+                        <p class="text-sm text-gray-600">Note: M-Pesa integration requires backend setup for automated processing. Currently, this is a manual entry system.</p>
+                        <button type="submit" class="btn-primary w-full">Record Contribution</button>
+                    </form>
+                </div>
+            `,
+            'request-loan': `
+                <h2 class="text-2xl font-bold text-maroon mb-6 text-center">Request A Loan</h2>
+                <div class="bg-gray-50 p-6 rounded-lg shadow-md">
+                    <form id="loan-request-form" class="space-y-4">
+                        <div>
+                            <label for="loan-amount" class="block text-gray-700 text-sm font-bold mb-2">Loan Amount (KSh)</label>
+                            <input type="number" id="loan-amount" class="input-field" placeholder="e.g., 10000" required min="100">
+                        </div>
+                        <div>
+                            <label for="repayment-plan" class="block text-gray-700 text-sm font-bold mb-2">Preferred Repayment Plan</label>
+                            <select id="repayment-plan" class="input-field" required>
+                                <option value="">Select Plan</option>
+                                <option value="3_months">3 Months</option>
+                                <option value="6_months">6 Months</option>
+                                <option value="12_months">12 Months</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label for="loan-purpose" class="block text-gray-700 text-sm font-bold mb-2">Purpose of Loan</label>
+                            <textarea id="loan-purpose" class="input-field h-24" placeholder="Briefly describe why you need the loan..." required></textarea>
+                        </div>
+                        <p class="text-sm text-gray-600">Loan requests are subject to admin approval and Chama rules.</p>
+                        <button type="submit" class="btn-primary w-full">Submit Loan Request</button>
+                    </form>
+                </div>
+            `,
+            'view-statements': `
+                <h2 class="text-2xl font-bold text-maroon mb-6 text-center">My Statements</h2>
+                <div class="bg-gray-50 p-6 rounded-lg shadow-md scroll-y">
+                    <p class="text-gray-700 mb-4">Here you can view your detailed financial statements, including contributions, loans, fines, and interest earned.</p>
+                    <table class="table-auto" id="statements-table">
+                        <thead>
+                            <tr>
+                                <th>Date</th>
+                                <th>Type</th>
+                                <th>Description</th>
+                                <th>Amount (KSh)</th>
+                                <th>Balance (KSh)</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <!-- Dynamic rows will be inserted here -->
+                        </tbody>
+                    </table>
+                    <p class="text-sm text-gray-600 mt-4">For official reports or to export your full statement, please contact an administrator.</p>
+                </div>
+            `,
+            'update-profile': `
+                <h2 class="text-2xl font-bold text-maroon mb-6 text-center">Update Your Profile</h2>
+                <div class="bg-gray-50 p-6 rounded-lg shadow-md">
+                    <form id="update-profile-form" class="space-y-4">
+                        <div>
+                            <label for="profile-full-name" class="block text-gray-700 text-sm font-bold mb-2">Full Name</label>
+                            <input type="text" id="profile-full-name" class="input-field" value="${currentUserData.fullName || ''}" required>
+                        </div>
+                        <div>
+                            <label for="profile-email" class="block text-gray-700 text-sm font-bold mb-2">Email</label>
+                            <input type="email" id="profile-email" class="input-field" value="${currentUserData.email || ''}" disabled>
+                            <p class="text-xs text-gray-500 mt-1">Email cannot be changed directly here.</p>
+                        </div>
+                        <div>
+                            <label for="profile-phone" class="block text-gray-700 text-sm font-bold mb-2">Phone Number</label>
+                            <input type="tel" id="profile-phone" class="input-field" value="${currentUserData.phone || ''}" required pattern="^\\+?\\d{10,14}$">
+                        </div>
+                        <div>
+                            <label for="profile-national-id" class="block text-gray-700 text-sm font-bold mb-2">National ID</label>
+                            <input type="text" id="profile-national-id" class="input-field" value="${currentUserData.nationalId || ''}" required>
+                        </div>
+                        <button type="submit" class="btn-primary w-full">Save Profile Updates</button>
+                    </form>
+                </div>
+            `,
+            'contribution-history': `
+                <h2 class="text-2xl font-bold text-maroon mb-6 text-center">Contribution History</h2>
+                <div class="bg-gray-50 p-6 rounded-lg shadow-md scroll-y">
+                    <p class="text-gray-700 mb-4">A record of all your contributions to the Chama.</p>
+                    <table class="table-auto" id="contribution-history-table">
+                        <thead>
+                            <tr>
+                                <th>Date</th>
+                                <th>Amount (KSh)</th>
+                                <th>Method</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <!-- Dynamic rows will be inserted here -->
+                        </tbody>
+                    </table>
+                </div>
+            `,
+            'loan-history': `
+                <h2 class="text-2xl font-bold text-maroon mb-6 text-center">Loan History</h2>
+                <div class="bg-gray-50 p-6 rounded-lg shadow-md scroll-y">
+                    <p class="text-gray-700 mb-4">Details of your past and active loans.</p>
+                    <table class="table-auto" id="loan-history-table">
+                        <thead>
+                            <tr>
+                                <th>Loan Date</th>
+                                <th>Amount (KSh)</th>
+                                <th>Repaid (KSh)</th>
+                                <th>Balance (KSh)</th>
+                                <th>Status</th>
+                                <th>Purpose</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <!-- Dynamic rows will be inserted here -->
+                        </tbody>
+                    </table>
+                </div>
+            `,
+            'group-overview': `
+                <h2 class="text-2xl font-bold text-maroon mb-6 text-center">Group Financial Overview</h2>
+                <div class="bg-gray-50 p-6 rounded-lg shadow-md">
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-center mb-6">
+                        <div class="p-4 bg-white rounded-lg shadow">
+                            <h3 class="text-lg font-semibold text-maroon">Total Group Savings</h3>
+                            <p class="text-3xl font-bold text-gray-800" id="group-total-savings">KSh 0.00</p>
+                        </div>
+                        <div class="p-4 bg-white rounded-lg shadow">
+                            <h3 class="text-lg font-semibold text-maroon">Total Loans Issued</h3>
+                            <p class="text-3xl font-bold text-gray-800" id="group-total-loans">KSh 0.00</p>
+                        </div>
+                        <div class="p-4 bg-white rounded-lg shadow">
+                            <h3 class="text-lg font-semibold text-maroon">Funds Available</h3>
+                            <p class="text-3xl font-bold text-gray-800" id="group-funds-available">KSh 0.00</p>
+                        </div>
+                    </div>
+                    <p class="text-gray-700 mb-4">Visual representation of group funds would go here (e.g., bar charts for contributions, pie chart for fund distribution).</p>
+                    <div class="bg-gray-200 h-48 flex items-center justify-center rounded-md text-gray-500">
+                        [Placeholder for Charts: e.g., Chart.js or D3.js integration]
+                    </div>
+                    <p class="text-sm text-gray-600 mt-4">Actual data fetching and chart rendering would require further implementation.</p>
+                </div>
+            `,
+            'meetings': `
+                <h2 class="text-2xl font-bold text-maroon mb-6 text-center">Upcoming Meetings & Notices</h2>
+                <div class="bg-gray-50 p-6 rounded-lg shadow-md scroll-y" id="meetings-list">
+                    <p class="text-gray-700 mb-4">Stay updated with our Chama's meeting schedules and important announcements.</p>
+                    <!-- Dynamic meeting entries will be inserted here -->
+                </div>
+                <div class="bg-gray-50 p-6 rounded-lg shadow-md mt-6">
+                    <h3 class="text-xl font-semibold text-maroon mb-3">Add New Meeting (Admin Only)</h3>
+                    <form id="add-meeting-form" class="space-y-4">
+                        <div>
+                            <label for="meeting-date" class="block text-gray-700 text-sm font-bold mb-2">Date</label>
+                            <input type="date" id="meeting-date" class="input-field" required>
+                        </div>
+                        <div>
+                            <label for="meeting-time" class="block text-gray-700 text-sm font-bold mb-2">Time</label>
+                            <input type="time" id="meeting-time" class="input-field" required>
+                        </div>
+                        <div>
+                            <label for="meeting-location" class="block text-gray-700 text-sm font-bold mb-2">Location</label>
+                            <input type="text" id="meeting-location" class="input-field" placeholder="e.g., Virtual (Google Meet)" required>
+                        </div>
+                        <div>
+                            <label for="meeting-agenda" class="block text-gray-700 text-sm font-bold mb-2">Agenda (brief)</label>
+                            <textarea id="meeting-agenda" class="input-field h-24" placeholder="Briefly describe agenda..." required></textarea>
+                        </div>
+                        <button type="submit" class="btn-primary w-full">Add Meeting</button>
+                    </form>
+                </div>
+            `,
+            'fines': `
+                <h2 class="text-2xl font-bold text-maroon mb-6 text-center">Fines & Penalties</h2>
+                <div class="bg-gray-50 p-6 rounded-lg shadow-md scroll-y">
+                    <p class="text-gray-700 mb-4">Track any accrued fines and penalties according to Chama rules.</p>
+                    <table class="table-auto" id="fines-table">
+                        <thead>
+                            <tr>
+                                <th>Date Issued</th>
+                                <th>Reason</th>
+                                <th>Amount (KSh)</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <!-- Dynamic rows will be inserted here -->
+                        </tbody>
+                    </table>
+                    <p class="text-sm text-gray-600 mt-4">Fines are calculated based on preset Chama rules (e.g., KES 100 for each missed meeting). Admin access is required for adjustments.</p>
+                </div>
+            `,
+            'investments': `
+                <h2 class="text-2xl font-bold text-maroon mb-6 text-center">Investment Opportunities</h2>
+                <div class="bg-gray-50 p-6 rounded-lg shadow-md scroll-y" id="investments-list">
+                    <p class="text-gray-700 mb-4">Explore and pledge contributions towards various group investment projects.</p>
+                    <!-- Dynamic investment entries will be inserted here -->
+                </div>
+                 <div class="bg-gray-50 p-6 rounded-lg shadow-md mt-6">
+                    <h3 class="text-xl font-semibold text-maroon mb-3">Add New Investment (Admin Only)</h3>
+                    <form id="add-investment-form" class="space-y-4">
+                        <div>
+                            <label for="investment-name" class="block text-gray-700 text-sm font-bold mb-2">Project Name</label>
+                            <input type="text" id="investment-name" class="input-field" placeholder="e.g., Land Acquisition" required>
+                        </div>
+                        <div>
+                            <label for="investment-goal" class="block text-gray-700 text-sm font-bold mb-2">Goal Amount (KSh)</label>
+                            <input type="number" id="investment-goal" class="input-field" placeholder="e.g., 5000000" required min="1000">
+                        </div>
+                        <div>
+                            <label for="investment-description" class="block text-gray-700 text-sm font-bold mb-2">Description</label>
+                            <textarea id="investment-description" class="input-field h-24" placeholder="Briefly describe the investment..." required></textarea>
+                        </div>
+                        <button type="submit" class="btn-primary w-full">Add Investment</button>
+                    </form>
+                </div>
+            `,
+            'forum': `
+                <h2 class="text-2xl font-bold text-maroon mb-6 text-center">Discussion Forum</h2>
+                <div class="bg-gray-50 p-6 rounded-lg shadow-md">
+                    <p class="text-gray-700 mb-4">This is your space to discuss Chama matters, share ideas, and connect with other members.</p>
+                    <div class="border border-gray-300 rounded-lg p-4 mb-4 bg-white" id="forum-posts">
+                        <!-- Forum posts will be loaded here -->
+                    </div>
+                    <div class="mt-6">
+                        <textarea id="forum-post-content" class="input-field h-24" placeholder="Type your message here..."></textarea>
+                        <button class="btn-primary mt-2" id="post-forum-message">Post Message</button>
+                    </div>
+                    <p class="text-sm text-gray-600 mt-4">Full real-time chat functionality and message storage requires dedicated backend implementation.</p>
+                </div>
+            `,
+            'notifications': `
+                <h2 class="text-2xl font-bold text-maroon mb-6 text-center">Your Notifications</h2>
+                <div class="bg-gray-50 p-6 rounded-lg shadow-md scroll-y" id="notifications-list">
+                    <p class="text-gray-700 mb-4">Stay informed with important updates and alerts regarding your Chama activities.</p>
+                    <!-- Dynamic notifications will be inserted here -->
+                </div>
+            `,
+            'voting-polls': `
+                <h2 class="text-2xl font-bold text-maroon mb-6 text-center">Member Voting & Polls</h2>
+                <div class="bg-gray-50 p-6 rounded-lg shadow-md scroll-y" id="polls-list">
+                    <p class="text-gray-700 mb-4">Participate in important Chama decisions through secure online voting.</p>
+                    <!-- Dynamic polls will be inserted here -->
+                </div>
+                 <div class="bg-gray-50 p-6 rounded-lg shadow-md mt-6">
+                    <h3 class="text-xl font-semibold text-maroon mb-3">Create New Poll (Admin Only)</h3>
+                    <form id="create-poll-form" class="space-y-4">
+                        <div>
+                            <label for="poll-question" class="block text-gray-700 text-sm font-bold mb-2">Poll Question</label>
+                            <input type="text" id="poll-question" class="input-field" placeholder="e.g., Should we invest in Project X?" required>
+                        </div>
+                        <div>
+                            <label for="poll-options" class="block text-gray-700 text-sm font-bold mb-2">Options (comma-separated)</label>
+                            <input type="text" id="poll-options" class="input-field" placeholder="e.g., Yes, No, Abstain" required>
+                        </div>
+                        <button type="submit" class="btn-primary w-full">Create Poll</button>
+                    </form>
+                </div>
+            `,
+            'attendance': `
+                <h2 class="text-2xl font-bold text-maroon mb-6 text-center">Attendance Register</h2>
+                <div class="bg-gray-50 p-6 rounded-lg shadow-md scroll-y">
+                    <p class="text-gray-700 mb-4">Mark your attendance for meetings and view your attendance history.</p>
+                    <div class="mb-6 bg-white p-4 rounded-lg shadow-sm">
+                        <h3 class="text-xl font-semibold text-maroon mb-3">Mark My Attendance (Manual Entry)</h3>
+                        <form id="attendance-form" class="space-y-4">
+                            <div>
+                                <label for="attendance-date" class="block text-gray-700 text-sm font-bold mb-2">Meeting Date</label>
+                                <input type="date" id="attendance-date" class="input-field" required>
+                            </div>
+                            <div>
+                                <label for="attendance-time" class="block text-gray-700 text-sm font-bold mb-2">Meeting Time</label>
+                                <input type="time" id="attendance-time" class="input-field" required>
+                            </div>
+                            <button type="submit" class="btn-primary w-full">Record Attendance</button>
+                        </form>
+                        <p class="text-sm text-gray-600 mt-4">For automated attendance, QR code scanning integration would be required.</p>
+                    </div>
+
+                    <h3 class="text-xl font-semibold text-maroon mb-3">My Attendance History</h3>
+                    <table class="table-auto" id="attendance-history-table">
+                        <thead>
+                            <tr>
+                                <th>Date</th>
+                                <th>Meeting Type</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <!-- Dynamic rows will be inserted here -->
+                        </tbody>
+                    </table>
+                </div>
+            `,
+            'documents': `
+                <h2 class="text-2xl font-bold text-maroon mb-6 text-center">Group Documents</h2>
+                <div class="bg-gray-50 p-6 rounded-lg shadow-md scroll-y" id="documents-list">
+                    <p class="text-gray-700 mb-4">Access important Chama documents securely.</p>
+                    <!-- Dynamic document entries will be inserted here -->
+                </div>
+                 <div class="bg-gray-50 p-6 rounded-lg shadow-md mt-6">
+                    <h3 class="text-xl font-semibold text-maroon mb-3">Upload New Document (Admin Only)</h3>
+                    <form id="upload-document-form" class="space-y-4">
+                        <div>
+                            <label for="document-name" class="block text-gray-700 text-sm font-bold mb-2">Document Name</label>
+                            <input type="text" id="document-name" class="input-field" placeholder="e.g., Chama Constitution V2.0" required>
+                        </div>
+                        <div>
+                            <label for="document-url" class="block text-gray-700 text-sm font-bold mb-2">Document URL</label>
+                            <input type="url" id="document-url" class="input-field" placeholder="https://example.com/document.pdf" required>
+                        </div>
+                        <button type="submit" class="btn-primary w-full">Upload Document</button>
+                    </form>
+                </div>
+            `,
+        };
+
+
+        const appContent = document.getElementById('app-content');
+        const hamburgerMenu = document.getElementById('hamburger-menu');
+        const mobileMenu = document.getElementById('mobile-menu');
+        const chatButton = document.getElementById('chat-button');
+        const chatModalOverlay = document.getElementById('chat-modal-overlay');
+        const chatCloseButton = document.getElementById('chat-close-button');
+        const chatInput = document.getElementById('chat-input');
+        const chatSendButton = document.getElementById('chat-send-button');
+        const chatMessagesDiv = document.getElementById('chat-messages');
+
+        let dashboardSubpageContent = null; // Will be initialized when dashboard is rendered
+
+        // Toggle mobile menu visibility
+        window.toggleMobileMenu = function() { // Make global
+            mobileMenu.classList.toggle('hidden');
+        }
+
+        hamburgerMenu.addEventListener('click', window.toggleMobileMenu);
+
+        // Chat Modal functions
+        function openChatModal() {
+            chatModalOverlay.classList.add('show');
+            if (currentUserId) {
+                loadChatHistory();
+            } else {
+                chatMessagesDiv.innerHTML = `<div class="chat-message admin">Please log in to start a chat with support.</div>`;
+            }
+        }
+
+        function closeChatModal() {
+            chatModalOverlay.classList.remove('show');
+            // Unsubscribe from chat listener when modal is closed
+            if (unsubscribeChat) {
+                unsubscribeChat();
+            }
+        }
+
+        // Add message to chat display
+        function addMessageToChat(messageText, role, timestamp) {
+            const messageElement = document.createElement('div');
+            messageElement.classList.add('chat-message', role);
+            let timeStr = timestamp ? new Date(timestamp.seconds * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '';
+            messageElement.innerHTML = `${messageText} <span class="text-xs text-gray-500">${timeStr}</span>`;
+            chatMessagesDiv.appendChild(messageElement);
+            chatMessagesDiv.scrollTop = chatMessagesDiv.scrollHeight; // Scroll to bottom
+        }
+
+        // Load chat history from Firestore
+        let unsubscribeChat = null; // To store the unsubscribe function for real-time listener
+
+        function loadChatHistory() {
+            if (!currentUserId || !db) {
+                console.warn("Cannot load chat history: User not logged in or Firestore not initialized.");
+                return;
+            }
+
+            // Unsubscribe from previous listener if exists
+            if (unsubscribeChat) {
+                unsubscribeChat();
+            }
+
+            const chatCollectionRef = collection(db, `artifacts/${appId}/users/${currentUserId}/support_messages`);
+            const q = query(chatCollectionRef, orderBy('timestamp'));
+
+            unsubscribeChat = onSnapshot(q, (snapshot) => {
+                chatMessagesDiv.innerHTML = ''; // Clear existing messages
+                snapshot.forEach((doc) => {
+                    const message = doc.data();
+                    addMessageToChat(message.text, message.role, message.timestamp);
+                });
+            }, (error) => {
+                console.error("Error loading chat messages:", error);
+                showMessage("Failed to load chat history.", "error");
+            });
+        }
+
+        // Send message to Firestore
+        async function sendMessage() {
+            const messageText = chatInput.value.trim();
+            if (messageText === "") {
+                return;
+            }
+
+            if (!currentUserId) {
+                showMessage("Please log in to send messages.", "error");
+                window.renderPage('login');
+                closeChatModal();
+                return;
+            }
+
+            try {
+                await addDoc(collection(db, `artifacts/${appId}/users/${currentUserId}/support_messages`), {
+                    text: messageText,
+                    timestamp: serverTimestamp(),
+                    senderId: currentUserId,
+                    senderName: currentUserName || "User",
+                    role: 'user'
+                });
+                chatInput.value = ''; // Clear input
+
+                // Simulate admin reply for demonstration
+                setTimeout(async () => {
+                    await addDoc(collection(db, `artifacts/${appId}/users/${currentUserId}/support_messages`), {
+                        text: "Thank you for your message. Our support team will review it and get back to you shortly.",
+                        timestamp: serverTimestamp(),
+                        senderId: "admin",
+                        senderName: "Admin Support",
+                        role: 'admin'
+                    });
+                }, 1500); // Simulate a delay for admin response
+
+            } catch (error) {
+                console.error("Error sending message:", error);
+                showMessage("Failed to send message.", "error");
+            }
+        }
+
+        // Attach chat event listeners
+        chatButton.addEventListener('click', openChatModal);
+        chatCloseButton.addEventListener('click', closeChatModal);
+        chatSendButton.addEventListener('click', sendMessage);
+        chatInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                sendMessage();
+            }
+        });
+
+
+        // Function to render page content
+        window.renderPage = async function(pageName) { // Make global
+            // Close mobile menu if open
+            if (!mobileMenu.classList.contains('hidden')) {
+                window.toggleMobileMenu();
+            }
+
+            // Stop carousel if not on home page
+            if (pageName !== 'home') {
+                stopImageCarousel();
+            }
+
+            // Redirect to login if trying to access dashboard and not logged in
+            if (pageName === 'dashboard') {
+                if (!auth || !auth.currentUser) {
+                    showMessage("Please log in to access the Dashboard.", "error");
+                    window.location.hash = '#login'; // Update URL hash
+                    appContent.innerHTML = pages['login'];
+                    attachLoginEventListeners();
+                    return;
+                }
+            }
+
+            // For dashboard, load default subpage or maintain current one
+            if (pageName === 'dashboard') {
+                 appContent.innerHTML = pages[pageName];
+                 // Initialize dashboardSubpageContent after dashboard HTML is in DOM
+                 dashboardSubpageContent = document.getElementById('dashboard-subpage-content');
+                 await updateDashboardData(); // Update main dashboard info
+                 const currentSubpageHash = window.location.hash.split('/')[1];
+                 if (currentSubpageHash && dashboardSubpages[currentSubpageHash]) {
+                     window.renderDashboardSubpage(currentSubpageHash);
+                 } else {
+                     // Default dashboard view
+                     if(dashboardSubpageContent) {
+                          dashboardSubpageContent.innerHTML = `<p class="text-center text-gray-600">Select an option above to manage your Chama activities.</p>`;
+                     }
+                 }
+            } else {
+                appContent.innerHTML = pages[pageName];
+            }
+
+
+            window.location.hash = '#' + pageName; // Update URL hash
+
+            // Attach event listeners after rendering
+            if (pageName === 'signup') {
+                attachSignupEventListeners();
+            } else if (pageName === 'login') {
+                attachLoginEventListeners();
+            } else if (pageName === 'forgot-password') {
+                attachForgotPasswordEventListeners();
+            } else if (pageName === 'home') {
+                startImageCarousel(); // Start carousel when home page is rendered
+            }
+        }
+
+        // Function to render dashboard sub-pages
+        window.renderDashboardSubpage = async function(subpageName) {
+            // Ensure dashboardSubpageContent is initialized
+            if (!dashboardSubpageContent) {
+                 dashboardSubpageContent = document.getElementById('dashboard-subpage-content');
+            }
+
+            // Define the locked message content
+            const lockedServiceContent = `
+                <div class="text-center p-8 bg-red-50 border border-red-200 rounded-lg">
+                    <i class="fas fa-lock text-red-500 text-4xl mb-4"></i>
+                    <h2 class="text-2xl font-bold text-red-700 mb-3">Service Locked</h2>
+                    <p class="text-gray-700 mb-4">
+                        This service is currently locked. Your account is pending approval by an administrator.
+                    </p>
+                    <p class="text-gray-700 font-semibold">
+                        Please check back after your membership has been approved to access all features.
+                    </p>
+                    <p class="text-sm text-gray-600 mt-4">
+                        If you believe this is an error, please contact support.
+                    </p>
+                </div>
+            `;
+
+            // Check if user is approved before rendering dashboard subpages (excluding notifications)
+            if (currentUserData.status !== 'approved' && subpageName !== 'notifications' && subpageName !== 'view-statements' && subpageName !== 'update-profile') {
+                 showMessage("This service is locked until your membership is approved by an admin.", "error");
+                 if(dashboardSubpageContent) {
+                    dashboardSubpageContent.innerHTML = lockedServiceContent;
+                 }
+                 return;
+            }
+
+
+            if (dashboardSubpageContent && dashboardSubpages[subpageName]) {
+                dashboardSubpageContent.innerHTML = dashboardSubpages[subpageName];
+                // Update URL hash to include subpage
+                window.location.hash = '#dashboard/' + subpageName;
+                attachDashboardSubpageFormListeners(); // Re-attach listeners for newly loaded forms
+
+                // Load data for specific subpages
+                switch (subpageName) {
+                    case 'contribution-history':
+                        loadContributionHistory();
+                        break;
+                    case 'loan-history':
+                        loadLoanHistory();
+                        break;
+                    case 'view-statements':
+                         loadStatements(); // This will aggregate all transactions
+                         break;
+                    case 'meetings':
+                        loadMeetings();
+                        break;
+                    case 'fines':
+                        loadFines();
+                        break;
+                    case 'investments':
+                        loadInvestments();
+                        break;
+                    case 'voting-polls':
+                        loadPolls();
+                        break;
+                    case 'attendance':
+                        loadAttendanceHistory();
+                        break;
+                    case 'documents':
+                        loadDocuments();
+                        break;
+                    case 'group-overview':
+                        loadGroupOverview();
+                        break;
+                    case 'notifications':
+                        loadNotifications(); // Using a mock data for now, real-time from Firestore later.
+                        break;
+                    case 'forum':
+                        loadForumPosts();
+                        break;
+                }
+
+            } else if (dashboardSubpageContent) {
+                dashboardSubpageContent.innerHTML = `<p class="text-center text-red-500">Sub-page not found or not yet implemented.</p>`;
+            }
+        };
+
+        // Attach Signup Form Event Listener
+        function attachSignupEventListeners() {
+            const signupForm = document.getElementById('signup-form');
+            if (signupForm) {
+                signupForm.addEventListener('submit', handleSignup);
+            }
+        }
+
+        // Attach Login Form Event Listener
+        function attachLoginEventListeners() {
+            const loginForm = document.getElementById('login-form');
+            if (loginForm) {
+                loginForm.addEventListener('submit', handleLogin);
+            }
+        }
+
+        // Attach Forgot Password Form Event Listener
+        function attachForgotPasswordEventListeners() {
+            const forgotPasswordForm = document.getElementById('forgot-password-form');
+            if (forgotPasswordForm) {
+                forgotPasswordForm.addEventListener('submit', handleForgotPassword);
+            }
+        }
+
+        // Attach event listeners for forms inside dashboard sub-pages
+        function attachDashboardSubpageFormListeners() {
+            const contributionForm = document.getElementById('contribution-form');
+            if (contributionForm) {
+                contributionForm.addEventListener('submit', handleMakeContribution);
+            }
+
+            const loanRequestForm = document.getElementById('loan-request-form');
+            if (loanRequestForm) {
+                loanRequestForm.addEventListener('submit', handleLoanRequest);
+            }
+
+            const updateProfileForm = document.getElementById('update-profile-form');
+            if (updateProfileForm) {
+                updateProfileForm.addEventListener('submit', handleUpdateProfile);
+            }
+            const attendanceForm = document.getElementById('attendance-form');
+            if (attendanceForm) {
+                attendanceForm.addEventListener('submit', handleRecordAttendance);
+            }
+
+            const addMeetingForm = document.getElementById('add-meeting-form');
+            if (addMeetingForm) {
+                addMeetingForm.addEventListener('submit', handleAddMeeting);
+            }
+
+            const addInvestmentForm = document.getElementById('add-investment-form');
+            if (addInvestmentForm) {
+                addInvestmentForm.addEventListener('submit', handleAddInvestment);
+            }
+
+            const createPollForm = document.getElementById('create-poll-form');
+            if (createPollForm) {
+                createPollForm.addEventListener('submit', handleCreatePoll);
+            }
+
+            const uploadDocumentForm = document.getElementById('upload-document-form');
+            if (uploadDocumentForm) {
+                uploadDocumentForm.addEventListener('submit', handleUploadDocument);
+            }
+
+            const postForumMessageButton = document.getElementById('post-forum-message');
+            if (postForumMessageButton) {
+                postForumMessageButton.addEventListener('click', handlePostForumMessage);
+            }
+
+            // Event delegation for poll voting buttons
+            const pollsList = document.getElementById('polls-list');
+            if (pollsList) {
+                pollsList.addEventListener('click', (event) => {
+                    if (event.target.classList.contains('vote-button')) {
+                        const pollId = event.target.dataset.pollId;
+                        const option = event.target.dataset.option;
+                        handleVote(pollId, option);
+                    }
+                });
+            }
+
+            // Event delegation for investment pledge buttons
+            const investmentsList = document.getElementById('investments-list');
+            if (investmentsList) {
+                investmentsList.addEventListener('click', (event) => {
+                    if (event.target.classList.contains('pledge-button')) {
+                        const investmentId = event.target.dataset.investmentId;
+                        // Prompt for amount or navigate to a dedicated pledge form
+                        const pledgeAmount = parseFloat(prompt("Enter amount to pledge:"));
+                        if (!isNaN(pledgeAmount) && pledgeAmount > 0) {
+                            handlePledgeContribution(investmentId, pledgeAmount);
+                        } else if (pledgeAmount !== null) {
+                            showMessage("Please enter a valid pledge amount.", "error");
+                        }
+                    }
+                });
+            }
+        }
+
+        // --- Firestore Data Loading Functions ---
+
+        // Load Contribution History
+        function loadContributionHistory() {
+            if (!currentUserId || !db) return;
+            const tableBody = document.querySelector('#contribution-history-table tbody');
+            if (!tableBody) return;
+
+            // Unsubscribe from previous listener if exists
+            if (window.unsubscribeContributionHistory) window.unsubscribeContributionHistory();
+
+            const q = query(collection(db, `artifacts/${appId}/users/${currentUserId}/contributions`), orderBy('timestamp', 'desc'));
+            window.unsubscribeContributionHistory = onSnapshot(q, (snapshot) => {
+                tableBody.innerHTML = ''; // Clear existing rows
+                snapshot.forEach((doc) => {
+                    const data = doc.data();
+                    const date = data.timestamp ? new Date(data.timestamp.seconds * 1000).toLocaleDateString() : 'N/A';
+                    const row = `
+                        <tr>
+                            <td>${date}</td>
+                            <td>${data.amount.toFixed(2)}</td>
+                            <td>${data.method}</td>
+                            <td>${data.status || 'Completed'}</td>
+                        </tr>
+                    `;
+                    tableBody.innerHTML += row;
+                });
+            }, (error) => {
+                console.error("Error loading contribution history:", error);
+                showMessage("Failed to load contribution history.", "error");
+            });
+        }
+
+        // Load Loan History
+        function loadLoanHistory() {
+            if (!currentUserId || !db) return;
+            const tableBody = document.querySelector('#loan-history-table tbody');
+            if (!tableBody) return;
+
+            // Unsubscribe from previous listener if exists
+            if (window.unsubscribeLoanHistory) window.unsubscribeLoanHistory();
+
+            const q = query(collection(db, `artifacts/${appId}/users/${currentUserId}/loans`), orderBy('timestamp', 'desc'));
+            window.unsubscribeLoanHistory = onSnapshot(q, (snapshot) => {
+                tableBody.innerHTML = ''; // Clear existing rows
+                snapshot.forEach((doc) => {
+                    const data = doc.data();
+                    const date = data.timestamp ? new Date(data.timestamp.seconds * 1000).toLocaleDateString() : 'N/A';
+                    const row = `
+                        <tr>
+                            <td>${date}</td>
+                            <td>${data.amount.toFixed(2)}</td>
+                            <td>${(data.repaid || 0).toFixed(2)}</td>
+                            <td>${(data.amount - (data.repaid || 0)).toFixed(2)}</td>
+                            <td>${data.status}</td>
+                            <td>${data.purpose}</td>
+                        </tr>
+                    `;
+                    tableBody.innerHTML += row;
+                });
+            }, (error) => {
+                console.error("Error loading loan history:", error);
+                showMessage("Failed to load loan history.", "error");
+            });
+        }
+
+        // Load All Statements (Contributions, Loans, Fines) - Aggregated View
+        async function loadStatements() {
+            if (!currentUserId || !db) return;
+            const tableBody = document.querySelector('#statements-table tbody');
+            if (!tableBody) return;
+            tableBody.innerHTML = ''; // Clear existing rows
+
+            let transactions = [];
+            let currentBalance = 0; // Simulate running balance
+
+            // Fetch Contributions
+            const contributionsSnapshot = await getDocs(query(collection(db, `artifacts/${appId}/users/${currentUserId}/contributions`), orderBy('timestamp')));
+            contributionsSnapshot.forEach(doc => {
+                const data = doc.data();
+                transactions.push({
+                    date: data.timestamp ? new Date(data.timestamp.seconds * 1000) : new Date(0),
+                    type: 'Contribution',
+                    description: `Contribution via ${data.method}`,
+                    amount: data.amount,
+                    isCredit: true
+                });
+            });
+
+            // Fetch Loans Issued
+            const loansSnapshot = await getDocs(query(collection(db, `artifacts/${appId}/users/${currentUserId}/loans`), orderBy('timestamp')));
+            loansSnapshot.forEach(doc => {
+                const data = doc.data();
+                transactions.push({
+                    date: data.timestamp ? new Date(data.timestamp.seconds * 1000) : new Date(0),
+                    type: 'Loan Issued',
+                    description: `Loan for ${data.purpose}`,
+                    amount: data.amount,
+                    isCredit: false
+                });
+                // Simulate loan repayments (if any)
+                if (data.repaid && data.repaid > 0) {
+                     transactions.push({
+                        date: data.lastRepaymentTimestamp ? new Date(data.lastRepaymentTimestamp.seconds * 1000) : new Date(0), // Use a repayment timestamp if available
+                        type: 'Loan Repayment',
+                        description: `Repayment for loan for ${data.purpose}`,
+                        amount: data.repaid,
+                        isCredit: true
+                    });
+                }
+            });
+
+            // Fetch Fines
+            const finesSnapshot = await getDocs(query(collection(db, `artifacts/${appId}/users/${currentUserId}/fines`), orderBy('timestamp')));
+            finesSnapshot.forEach(doc => {
+                const data = doc.data();
+                transactions.push({
+                    date: data.timestamp ? new Date(data.timestamp.seconds * 1000) : new Date(0),
+                    type: 'Fine',
+                    description: data.reason,
+                    amount: data.amount,
+                    isCredit: false
+                });
+            });
+
+            // Sort all transactions by date
+            transactions.sort((a, b) => a.date - b.date);
+
+            transactions.forEach(t => {
+                currentBalance += t.isCredit ? t.amount : -t.amount;
+                const row = `
+                    <tr>
+                        <td>${t.date.toLocaleDateString()}</td>
+                        <td>${t.type}</td>
+                        <td>${t.description}</td>
+                        <td class="${t.isCredit ? 'text-green-600' : 'text-red-600'}">${t.isCredit ? '+' : '-'}${t.amount.toFixed(2)}</td>
+                        <td>${currentBalance.toFixed(2)}</td>
+                    </tr>
+                `;
+                tableBody.innerHTML += row;
+            });
+            if (transactions.length === 0) {
+                 tableBody.innerHTML = `<tr><td colspan="5" class="text-center text-gray-500">No statements found.</td></tr>`;
+            }
+        }
+
+        // Load Meetings
+        function loadMeetings() {
+            if (!db) return; // No currentUserId check as this is public data
+            const meetingsListDiv = document.getElementById('meetings-list');
+            if (!meetingsListDiv) return;
+
+            // Unsubscribe from previous listener if exists
+            if (window.unsubscribeMeetings) window.unsubscribeMeetings();
+
+            const q = query(collection(db, `artifacts/${appId}/public/data/meetings`), orderBy('date'));
+            window.unsubscribeMeetings = onSnapshot(q, (snapshot) => {
+                let htmlContent = `<p class="text-gray-700 mb-4">Stay updated with our Chama's meeting schedules and important announcements.</p><div class="space-y-4">`;
+                let hasMeetings = false;
+                snapshot.forEach((doc) => {
+                    const data = doc.data();
+                    hasMeetings = true;
+                    const meetingDate = data.date ? new Date(data.date.seconds * 1000).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) : 'N/A';
+                    htmlContent += `
+                        <div class="p-4 bg-white rounded-lg shadow-sm border-l-4 border-maroon">
+                            <h3 class="text-xl font-semibold text-maroon">${data.title || 'Meeting'}</h3>
+                            <p class="text-gray-800"><strong>Date:</strong> ${meetingDate}</p>
+                            <p class="text-gray-800"><strong>Time:</strong> ${data.time || 'N/A'}</p>
+                            <p class="text-gray-800"><strong>Location:</strong> ${data.location || 'N/A'}</p>
+                            <p class="text-gray-700 mt-2">Agenda includes: ${data.agenda || 'N/A'}</p>
+                            <button class="btn-primary mt-3 text-sm px-4 py-2" disabled>Confirm Attendance (Future Feature)</button>
+                        </div>
+                    `;
+                });
+                htmlContent += `</div>`;
+                if (!hasMeetings) {
+                    htmlContent = `<p class="text-center text-gray-500">No upcoming meetings scheduled.</p>`;
+                }
+                meetingsListDiv.innerHTML = htmlContent;
+            }, (error) => {
+                console.error("Error loading meetings:", error);
+                showMessage("Failed to load meetings.", "error");
+            });
+        }
+
+        // Load Fines
+        function loadFines() {
+            if (!currentUserId || !db) return;
+            const tableBody = document.querySelector('#fines-table tbody');
+            if (!tableBody) return;
+
+            // Unsubscribe from previous listener if exists
+            if (window.unsubscribeFines) window.unsubscribeFines();
+
+            const q = query(collection(db, `artifacts/${appId}/users/${currentUserId}/fines`), orderBy('timestamp', 'desc'));
+            window.unsubscribeFines = onSnapshot(q, (snapshot) => {
+                tableBody.innerHTML = ''; // Clear existing rows
+                snapshot.forEach((doc) => {
+                    const data = doc.data();
+                    const date = data.timestamp ? new Date(data.timestamp.seconds * 1000).toLocaleDateString() : 'N/A';
+                    const row = `
+                        <tr>
+                            <td>${date}</td>
+                            <td>${data.reason}</td>
+                            <td>${data.amount.toFixed(2)}</td>
+                            <td>${data.status}</td>
+                        </tr>
+                    `;
+                    tableBody.innerHTML += row;
+                });
+                if (snapshot.empty) {
+                     tableBody.innerHTML = `<tr><td colspan="4" class="text-center text-gray-500">No fines recorded.</td></tr>`;
+                }
+            }, (error) => {
+                console.error("Error loading fines:", error);
+                showMessage("Failed to load fines.", "error");
+            });
+        }
+
+        // Load Investments
+        function loadInvestments() {
+            if (!db) return; // No currentUserId check as this is public data
+            const investmentsListDiv = document.getElementById('investments-list');
+            if (!investmentsListDiv) return;
+
+            // Unsubscribe from previous listener if exists
+            if (window.unsubscribeInvestments) window.unsubscribeInvestments();
+
+            const q = query(collection(db, `artifacts/${appId}/public/data/investments`), orderBy('createdAt', 'desc'));
+            window.unsubscribeInvestments = onSnapshot(q, (snapshot) => {
+                let htmlContent = `<p class="text-gray-700 mb-4">Explore and pledge contributions towards various group investment projects.</p><div class="space-y-6">`;
+                let hasInvestments = false;
+                snapshot.forEach((doc) => {
+                    hasInvestments = true;
+                    const data = doc.data();
+                    htmlContent += `
+                        <div class="p-4 bg-white rounded-lg shadow-sm border-l-4 border-maroon">
+                            <h3 class="text-xl font-semibold text-maroon">Project: ${data.name}</h3>
+                            <p class="text-gray-700 mt-2"><strong>Goal:</strong> KSh ${data.goal.toFixed(2)}</p>
+                            <p class="text-700"><strong>Pledged:</strong> KSh ${(data.pledged || 0).toFixed(2)}</p>
+                            <p class="text-gray-700"><strong>Description:</strong> ${data.description}</p>
+                            <button class="btn-primary mt-3 text-sm px-4 py-2 pledge-button" data-investment-id="${doc.id}">Pledge Contribution</button>
+                            <p class="text-sm text-gray-600 mt-2">Estimated Return: ${data.estimatedReturn || 'N/A'}</p>
+                        </div>
+                    `;
+                });
+                htmlContent += `</div>`;
+                if (!hasInvestments) {
+                    htmlContent = `<p class="text-center text-gray-500">No investment opportunities available at the moment.</p>`;
+                }
+                investmentsListDiv.innerHTML = htmlContent;
+                // Re-attach listeners for pledge buttons after content is loaded
+                attachDashboardSubpageFormListeners();
+            }, (error) => {
+                console.error("Error loading investments:", error);
+                showMessage("Failed to load investments.", "error");
+            });
+        }
+
+        // Load Polls
+        function loadPolls() {
+            if (!db) return; // No currentUserId check as this is public data
+            const pollsListDiv = document.getElementById('polls-list');
+            if (!pollsListDiv) return;
+
+            // Unsubscribe from previous listener if exists
+            if (window.unsubscribePolls) window.unsubscribePolls();
+
+            const q = query(collection(db, `artifacts/${appId}/public/data/polls`), orderBy('createdAt', 'desc'));
+            window.unsubscribePolls = onSnapshot(q, async (snapshot) => {
+                let htmlContent = `<p class="text-gray-700 mb-4">Participate in important Chama decisions through secure online voting.</p><div class="space-y-6">`;
+                let hasPolls = false;
+                const userVotes = currentUserId ? (await getDoc(doc(db, `artifacts/${appId}/users/${currentUserId}/user_profile`, currentUserId))).data()?.votes || {} : {};
+
+                snapshot.forEach((doc) => {
+                    hasPolls = true;
+                    const poll = { id: doc.id, ...doc.data() };
+                    const totalVotes = Object.values(poll.results || {}).reduce((sum, count) => sum + count, 0);
+                    const userVotedOption = userVotes[poll.id];
+
+                    let optionsHtml = '';
+                    // Ensure poll.options is an array for iteration
+                    const optionsToRender = Array.isArray(poll.options) ? poll.options : Object.keys(poll.options || {});
+
+                    optionsToRender.forEach(option => {
+                        const count = poll.results ? poll.results[option] || 0 : 0;
+                        const percentage = totalVotes > 0 ? ((count / totalVotes) * 100).toFixed(1) : 0;
+                        const isDisabled = !!userVotedOption; // Disable if user has already voted
+                        const isChecked = userVotedOption === option; // Check the radio button if it's the user's vote
+
+                        optionsHtml += `
+                            <label class="flex items-center space-x-2">
+                                <input type="radio" name="poll-${poll.id}" value="${option}" class="form-radio text-maroon" ${isDisabled ? 'disabled' : ''} ${isChecked ? 'checked' : ''}>
+                                <span>${option}</span>
+                                ${userVotedOption ? `<span class="text-sm text-gray-500 ml-2">(${percentage}%)</span>` : ''}
+                            </label>
+                        `;
+                    });
+
+                    htmlContent += `
+                        <div class="p-4 bg-white rounded-lg shadow-sm border-l-4 border-maroon">
+                            <h3 class="text-xl font-semibold text-maroon">Poll: ${poll.question}</h3>
+                            <p class="text-gray-800 mt-2 mb-3">${poll.description || ''}</p>
+                            <div class="space-y-2">
+                                ${optionsHtml}
+                            </div>
+                            <button class="btn-primary mt-3 text-sm px-4 py-2 vote-button" data-poll-id="${poll.id}" ${userVotedOption ? 'disabled' : ''}>
+                                ${userVotedOption ? 'Voted' : 'Submit Vote'}
+                            </button>
+                            ${userVotedOption ? `<p class="text-xs text-gray-500 mt-2">You voted for: <strong>${userVotedOption}</strong></p>` : ''}
+                            <p class="text-xs text-gray-500 mt-2">Total Votes: ${totalVotes}</p>
+                        </div>
+                    `;
+                });
+                htmlContent += `</div>`;
+                if (!hasPolls) {
+                    htmlContent = `<p class="text-center text-gray-500">No active polls at the moment.</p>`;
+                }
+                pollsListDiv.innerHTML = htmlContent;
+                attachDashboardSubpageFormListeners(); // Re-attach listeners for vote buttons
+            }, (error) => {
+                console.error("Error loading polls:", error);
+                showMessage("Failed to load polls.", "error");
+            });
+        }
+
+
+        // Load Attendance History
+        function loadAttendanceHistory() {
+            if (!currentUserId || !db) return;
+            const tableBody = document.querySelector('#attendance-history-table tbody');
+            if (!tableBody) return;
+
+            // Unsubscribe from previous listener if exists
+            if (window.unsubscribeAttendanceHistory) window.unsubscribeAttendanceHistory();
+
+            const q = query(collection(db, `artifacts/${appId}/users/${currentUserId}/attendance`), orderBy('timestamp', 'desc'));
+            window.unsubscribeAttendanceHistory = onSnapshot(q, (snapshot) => {
+                tableBody.innerHTML = ''; // Clear existing rows
+                snapshot.forEach((doc) => {
+                    const data = doc.data();
+                    const date = data.timestamp ? new Date(data.timestamp.seconds * 1000).toLocaleDateString() : 'N/A';
+                    const row = `
+                        <tr>
+                            <td>${date}</td>
+                            <td>${data.meetingType || 'General Meeting'}</td>
+                            <td>${data.status}</td>
+                        </tr>
+                    `;
+                    tableBody.innerHTML += row;
+                });
+                if (snapshot.empty) {
+                     tableBody.innerHTML = `<tr><td colspan="3" class="text-center text-gray-500">No attendance records found.</td></tr>`;
+                }
+            }, (error) => {
+                console.error("Error loading attendance history:", error);
+                showMessage("Failed to load attendance history.", "error");
+            });
+        }
+
+        // Load Documents
+        function loadDocuments() {
+            if (!db) return; // No currentUserId check as this is public data
+            const documentsListDiv = document.getElementById('documents-list');
+            if (!documentsListDiv) return;
+
+            // Unsubscribe from previous listener if exists
+            if (window.unsubscribeDocuments) window.unsubscribeDocuments();
+
+            const q = query(collection(db, `artifacts/${appId}/public/data/documents`), orderBy('uploadedAt', 'desc'));
+            window.unsubscribeDocuments = onSnapshot(q, (snapshot) => {
+                let htmlContent = `<p class="text-gray-700 mb-4">Access important Chama documents securely.</p><div class="space-y-4">`;
+                let hasDocuments = false;
+                snapshot.forEach((doc) => {
+                    hasDocuments = true;
+                    const data = doc.data();
+                    htmlContent += `
+                        <div class="p-4 bg-white rounded-lg shadow-sm border-l-4 border-maroon flex justify-between items-center">
+                            <div>
+                                <h3 class="text-xl font-semibold text-maroon">${data.name}</h3>
+                                <p class="text-gray-700 text-sm">Uploaded: ${data.uploadedAt ? new Date(data.uploadedAt.seconds * 1000).toLocaleDateString() : 'N/A'}</p>
+                            </div>
+                            <a href="${data.url}" target="_blank" class="btn-primary text-sm px-4 py-2"><i class="fas fa-download mr-2"></i>Download</a>
+                        </div>
+                    `;
+                });
+                htmlContent += `</div>`;
+                if (!hasDocuments) {
+                    htmlContent = `<p class="text-center text-gray-500">No documents available at the moment.</p>`;
+                }
+                documentsListDiv.innerHTML = htmlContent;
+            }, (error) => {
+                console.error("Error loading documents:", error);
+                showMessage("Failed to load documents.", "error");
+            });
+        }
+
+        // Load Group Overview Data
+        async function loadGroupOverview() {
+            if (!db) return;
+
+            const totalSavingsEl = document.getElementById('group-total-savings');
+            const totalLoansEl = document.getElementById('group-total-loans');
+            const fundsAvailableEl = document.getElementById('group-funds-available');
+
+            if (!totalSavingsEl || !totalLoansEl || !fundsAvailableEl) return;
+
+            let totalContributions = 0;
+            let totalLoansIssued = 0;
+
+            try {
+                // Aggregate contributions from all users
+                const usersRef = collection(db, `artifacts/${appId}/users`);
+                const usersSnapshot = await getDocs(usersRef);
+
+                for (const userDocRef of usersSnapshot.docs) {
+                    const userId = userDocRef.id;
+                    const userProfileRef = doc(db, `artifacts/${appId}/users/${userId}/user_profile`, userId);
+                    const userProfileDoc = await getDoc(userProfileRef);
+                    if (userProfileDoc.exists()) {
+                        totalContributions += userProfileDoc.data().contribution_balance || 0;
+                    }
+                }
+
+                // Aggregate loans issued (assuming a "loans_issued" collection for all loans, or sum from user loans)
+                // For simplicity, let's sum up all 'amount' from all users' loans subcollections
+                for (const userDocRef of usersSnapshot.docs) {
+                    const userId = userDocRef.id;
+                    const loansSnapshot = await getDocs(collection(db, `artifacts/${appId}/users/${userId}/loans`));
+                    loansSnapshot.forEach(loanDoc => {
+                        totalLoansIssued += loanDoc.data().amount || 0;
+                    });
+                }
+
+                const fundsAvailable = totalContributions - totalLoansIssued;
+
+                totalSavingsEl.textContent = `KSh ${totalContributions.toFixed(2)}`;
+                totalLoansEl.textContent = `KSh ${totalLoansIssued.toFixed(2)}`;
+                fundsAvailableEl.textContent = `KSh ${fundsAvailable.toFixed(2)}`;
+
+            } catch (error) {
+                console.error("Error loading group overview:", error);
+                showMessage("Failed to load group overview data.", "error");
+                totalSavingsEl.textContent = "KSh 0.00";
+                totalLoansEl.textContent = "KSh 0.00";
+                fundsAvailableEl.textContent = "KSh 0.00";
+            }
+        }
+
+        // Load Notifications (Mock for now, will fetch from Firestore if a 'notifications' collection is added)
+        function loadNotifications() {
+            const notificationsListDiv = document.getElementById('notifications-list');
+            if (!notificationsListDiv) return;
+
+            // This is currently mock data. In a real app, you would fetch from a 'notifications' collection
+            // specific to the user, like: artifacts/{appId}/users/{currentUserId}/notifications
+            const mockNotifications = [
+                { id: 1, type: 'Contribution Received', text: 'Your KSh 1,000 contribution on 2024-07-25 was successfully recorded.', timestamp: '2024-07-25 10:30 AM', status: 'read' },
+                { id: 2, type: 'Loan Approved', text: 'Your loan request for KSh 15,000 has been approved. Funds will be disbursed within 24 hours.', timestamp: '2024-07-01 02:15 PM', status: 'unread' },
+                { id: 3, type: 'New Meeting Scheduled', text: 'A new monthly meeting is scheduled for August 15, 2024, 6:00 PM EAT.', timestamp: '2024-07-30 09:00 AM', status: 'read' },
+                { id: 4, type: 'Password Reset', text: 'A password reset link has been sent to your registered email address.', timestamp: '2024-08-01 11:00 AM', status: 'unread' },
+            ];
+
+            let htmlContent = `<p class="text-gray-700 mb-4">Stay informed with important updates and alerts regarding your Chama activities.</p><div class="space-y-4">`;
+            mockNotifications.forEach(notif => {
+                const borderColor = notif.status === 'unread' ? 'border-maroon' : 'border-gray-400';
+                const textColor = notif.status === 'unread' ? 'text-maroon' : 'text-gray-700';
+                htmlContent += `
+                    <div class="p-4 bg-white rounded-lg shadow-sm border-l-4 ${borderColor}">
+                        <h3 class="text-xl font-semibold ${textColor}">${notif.type}</h3>
+                        <p class="text-gray-800 mt-1">${notif.text}</p>
+                        <p class="text-xs text-gray-500 mt-2">Received: ${notif.timestamp}</p>
+                    </div>
+                `;
+            });
+            htmlContent += `</div>`;
+            notificationsListDiv.innerHTML = htmlContent;
+        }
+
+        // Load Forum Posts (Mock for now, will fetch from Firestore if a 'forum_posts' collection is added)
+        function loadForumPosts() {
+            const forumPostsDiv = document.getElementById('forum-posts');
+            if (!forumPostsDiv) return;
+
+            // This is currently mock data. In a real app, you would fetch from a 'forum_posts' collection
+            // and perhaps manage replies in a subcollection.
+            const mockForumPosts = [
+                { id: 1, author: 'Admin', title: 'Next meeting agenda discussion', content: 'Please provide your input on potential agenda items for the August 15th meeting by August 10th.', timestamp: '2024-08-01' },
+                { id: 2, author: 'Jane Doe', title: 'Member Query: Loan repayment grace period?', content: 'Has anyone experienced issues with loan repayment deadlines? Is there a grace period we can discuss?', timestamp: '2024-08-05' },
+            ];
+
+            let htmlContent = '';
+            if (mockForumPosts.length === 0) {
+                 htmlContent = `<p class="text-center text-gray-500">No forum posts yet.</p>`;
+            } else {
+                mockForumPosts.forEach(post => {
+                    htmlContent += `
+                        <div class="border border-gray-300 rounded-lg p-4 mb-4 bg-white">
+                            <div class="font-bold text-maroon">${post.author}: ${post.title}</div>
+                            <p class="text-gray-800 text-sm mt-1">${post.content}</p>
+                            <p class="text-xs text-gray-500 mt-2">Posted by ${post.author} on ${post.timestamp}</p>
+                        </div>
+                    `;
+                });
+            }
+            forumPostsDiv.innerHTML = htmlContent;
+        }
+
+
+        // --- Firestore Data Handling Functions (Add/Update/Delete) ---
+
+        // Handle Record Attendance
+        async function handleRecordAttendance(event) {
+            event.preventDefault();
+            const date = document.getElementById('attendance-date').value;
+            const time = document.getElementById('attendance-time').value;
+
+            if (!date || !time) {
+                showMessage("Please select both date and time.", "error");
+                return;
+            }
+
+            if (!currentUserId) {
+                showMessage("Please log in to record attendance.", "error");
+                window.renderPage('login');
+                return;
+            }
+            if (currentUserData.status !== 'approved') {
+                 showMessage("Your account is pending approval. Cannot record attendance yet.", "error");
+                 return;
+             }
+
+            try {
+                await addDoc(collection(db, `artifacts/${appId}/users/${currentUserId}/attendance`), {
+                    date: new Date(`${date}T${time}`),
+                    timestamp: serverTimestamp(),
+                    meetingType: 'General Meeting', // Could be dynamic
+                    status: 'Present'
+                });
+                showMessage(`Attendance for ${date} at ${time} recorded successfully!`, "success");
+                document.getElementById('attendance-form').reset();
+            } catch (error) {
+                console.error("Error recording attendance:", error);
+                showMessage("Failed to record attendance. Please try again.", "error");
+            }
+        }
+
+
+        // Handle Make Contribution
+        async function handleMakeContribution(event) {
+            event.preventDefault();
+            const amount = parseFloat(document.getElementById('contribution-amount').value);
+            const method = document.getElementById('payment-method').value;
+
+            if (isNaN(amount) || amount <= 0) {
+                showMessage("Please enter a valid amount.", "error");
+                return;
+            }
+            if (!method) {
+                showMessage("Please select a payment method.", "error");
+                return;
+            }
+
+            if (!currentUserId) {
+                showMessage("Please log in to make a contribution.", "error");
+                window.renderPage('login');
+                return;
+            }
+
+            if (currentUserData.status !== 'approved') {
+                showMessage("Your account is pending approval. You cannot make contributions yet.", "error");
+                return;
+            }
+
+            const userProfileRef = doc(db, `artifacts/${appId}/users/${currentUserId}/user_profile`, currentUserId);
+            try {
+                // Add contribution to sub-collection
+                await addDoc(collection(db, `artifacts/${appId}/users/${currentUserId}/contributions`), {
+                    amount: amount,
+                    method: method,
+                    status: 'Completed',
+                    timestamp: serverTimestamp()
+                });
+
+                // Update user's contribution balance in their profile
+                const newBalance = (currentUserData.contribution_balance || 0) + amount;
+                await updateDoc(userProfileRef, {
+                    contribution_balance: newBalance
+                });
+
+                showMessage(`Successfully recorded KSh ${amount.toFixed(2)} contribution via ${method}.`, "success");
+                currentUserData.contribution_balance = newBalance; // Update local data
+                updateDashboardData(); // Refresh dashboard view
+                document.getElementById('contribution-form').reset(); // Clear form
+            } catch (error) {
+                console.error("Error recording contribution:", error);
+                showMessage("Failed to record contribution. Please try again.", "error");
+            }
+        }
+
+        // Handle Loan Request
+        async function handleLoanRequest(event) {
+            event.preventDefault();
+            const amount = parseFloat(document.getElementById('loan-amount').value);
+            const plan = document.getElementById('repayment-plan').value;
+            const purpose = document.getElementById('loan-purpose').value.trim();
+
+            if (isNaN(amount) || amount <= 0) {
+                showMessage("Please enter a valid loan amount.", "error");
+                return;
+            }
+            if (!plan) {
+                showMessage("Please select a repayment plan.", "error");
+                return;
+            }
+            if (!purpose) {
+                showMessage("Please state the purpose of the loan.", "error");
+                return;
+            }
+
+            if (!currentUserId) {
+                showMessage("Please log in to request a loan.", "error");
+                window.renderPage('login');
+                return;
+            }
+
+            if (currentUserData.status !== 'approved') {
+                showMessage("Your account is pending approval. You cannot request loans yet.", "error");
+                return;
+            }
+
+            try {
+                await addDoc(collection(db, `artifacts/${appId}/users/${currentUserId}/loans`), {
+                    amount: amount,
+                    repaymentPlan: plan,
+                    purpose: purpose,
+                    status: 'pending', // Pending admin approval
+                    timestamp: serverTimestamp(),
+                    repaid: 0 // Initial repaid amount
+                });
+                showMessage(`Loan request for KSh ${amount.toFixed(2)} (${plan}, Purpose: ${purpose}) submitted successfully. Awaiting admin approval.`, "success");
+                document.getElementById('loan-request-form').reset(); // Clear form
+            } catch (error) {
+                console.error("Error submitting loan request:", error);
+                showMessage("Failed to submit loan request. Please try again.", "error");
+            }
+        }
+
+        // Handle Update Profile
+        async function handleUpdateProfile(event) {
+            event.preventDefault();
+            const fullName = document.getElementById('profile-full-name').value.trim();
+            const phone = document.getElementById('profile-phone').value.trim();
+            const nationalId = document.getElementById('profile-national-id').value.trim();
+
+            if (!fullName || !phone || !nationalId) {
+                showMessage("All fields are required.", "error");
+                return;
+            }
+            if (!/^\+?\d{10,14}$/.test(phone)) {
+                showMessage("Please enter a valid phone number (e.g., +254XXXXXXXXX).", "error");
+                return;
+            }
+
+            if (!currentUserId) {
+                showMessage("Please log in to update your profile.", "error");
+                window.renderPage('login');
+                return;
+            }
+            // For now, allow profile updates even if pending approval, but services are still locked.
+            // if (currentUserData.status !== 'approved') {
+            //     showMessage("Your account is pending approval. You can only update basic profile info after approval.", "error");
+            //     return;
+            // }
+
+            const userProfileRef = doc(db, `artifacts/${appId}/users/${currentUserId}/user_profile`, currentUserId);
+            try {
+                await updateDoc(userProfileRef, {
+                    fullName: fullName,
+                    phone: phone,
+                    nationalId: nationalId
+                });
+                showMessage("Profile updated successfully!", "success");
+                currentUserData.fullName = fullName; // Update local data
+                currentUserData.phone = phone;
+                currentUserData.nationalId = nationalId;
+                updateDashboardData(); // Refresh dashboard main view
+            } catch (error) {
+                console.error("Error updating profile:", error);
+                showMessage("Failed to update profile. Please try again.", "error");
+            }
+        }
+
+
+        // Handle Signup
+        async function handleSignup(event) {
+            event.preventDefault();
+            const fullName = document.getElementById('signup-full-name').value.trim();
+            const email = document.getElementById('signup-email').value.trim();
+            const phone = document.getElementById('signup-phone').value.trim();
+            const nationalId = document.getElementById('signup-national-id').value.trim();
+            const password = document.getElementById('signup-password').value;
+            const confirmPassword = document.getElementById('signup-confirm-password').value;
+
+            if (!fullName || !email || !phone || !nationalId || !password || !confirmPassword) {
+                showMessage("All fields are required.", "error");
+                return;
+            }
+            if (password !== confirmPassword) {
+                showMessage("Passwords do not match.", "error");
+                return;
+            }
+            if (password.length < 6) {
+                showMessage("Password must be at least 6 characters long.", "error");
+                return;
+            }
+            if (!/^\+?\d{10,14}$/.test(phone)) {
+                showMessage("Please enter a valid phone number (e.g., +254XXXXXXXXX).", "error");
+                return;
+            }
+
+            try {
+                const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+                const user = userCredential.user;
+
+                // Store additional user details in Firestore
+                const userProfileRef = doc(db, `artifacts/${appId}/users/${user.uid}/user_profile`, user.uid);
+                await setDoc(userProfileRef, {
+                    fullName: fullName,
+                    email: email,
+                    phone: phone,
+                    nationalId: nationalId,
+                    createdAt: serverTimestamp(), // Use serverTimestamp for consistency
+                    contribution_balance: 0, // Initial balance
+                    loan_balance: 0, // Initial loan balance
+                    next_meeting_date: "To be announced",
+                    status: "pending_approval" // Set initial status as pending approval
+                });
+
+                showMessage("Account created successfully! Your information is pending approval.", "success");
+                window.renderPage('pending-approval'); // Redirect to pending approval page
+            } catch (error) {
+                console.error("Error signing up:", error);
+                let errorMessage = "Failed to create account. Please try again.";
+                if (error.code === 'auth/email-already-in-use') {
+                    errorMessage = "This email is already registered.";
+                } else if (error.code === 'auth/invalid-email') {
+                    errorMessage = "Invalid email address.";
+                } else if (error.code === 'auth/weak-password') {
+                    errorMessage = "Password is too weak. Please choose a stronger one.";
+                }
+                showMessage(errorMessage, "error");
+            }
+        }
+
+        // Handle Login
+        window.handleLogin = async function(event) { // Make global as it might be needed for direct testing or other global calls
+            event.preventDefault();
+            const email = document.getElementById('login-email').value.trim();
+            const password = document.getElementById('login-password').value;
+
+            if (!email || !password) {
+                showMessage("Email and password are required.", "error");
+                return;
+            }
+
+            try {
+                const userCredential = await signInWithEmailAndPassword(auth, email, password);
+                const user = userCredential.user;
+
+                // Fetch user data after login to check status
+                const userProfileRef = doc(db, `artifacts/${appId}/users/${user.uid}/user_profile`, user.uid);
+                const userDoc = await getDoc(userProfileRef);
+
+                if (userDoc.exists()) {
+                    currentUserData = userDoc.data();
+                    currentUserName = currentUserData.fullName || user.email;
+
+                    if (currentUserData.status === 'pending_approval') {
+                        showMessage("Login successful! Your account is pending approval, and access to services is limited.", "success");
+                        window.renderPage('dashboard'); // Redirect to dashboard
+                    } else if (currentUserData.status === 'approved') {
+                        showMessage("Logged in successfully!", "success");
+                        window.renderPage('dashboard'); // Redirect to dashboard
+                    } else {
+                        // Handle other unknown statuses or suspended accounts
+                        showMessage("Your account status is not active. Please contact support.", "error");
+                        signOut(auth); // Log out immediately if status is not approved
+                        window.renderPage('login');
+                    }
+                } else {
+                    // This case indicates a Firebase user but no corresponding Firestore profile (shouldn't happen with current signup flow)
+                    showMessage("User profile not found. Please contact support.", "error");
+                    signOut(auth);
+                    window.renderPage('login');
+                }
+
+            } catch (error) {
+                console.error("Error logging in:", error);
+                let errorMessage = "Failed to log in. Please check your credentials.";
+                if (error.code === 'auth/invalid-credential') { // Covers auth/wrong-password and auth/user-not-found
+                    errorMessage = "Invalid email or password.";
+                } else if (error.code === 'auth/invalid-email') {
+                    errorMessage = "Invalid email format.";
+                }
+                showMessage(errorMessage, "error");
+            }
+        }
+
+        // Handle Forgot Password
+        function handleForgotPassword(event) {
+            event.preventDefault();
+            const email = document.getElementById('reset-email').value.trim();
+
+            if (!email) {
+                showMessage("Please enter your email address.", "error");
+                return;
+            }
+
+            try {
+                sendPasswordResetEmail(auth, email);
+                showMessage("Password reset link sent to your email!", "success");
+                window.renderPage('login'); // Redirect to login
+            }
+            catch (error) {
+                console.error("Error sending password reset email:", error);
+                let errorMessage = "Failed to send reset link. Please try again.";
+                if (error.code === 'auth/invalid-email') {
+                    errorMessage = "Invalid email address.";
+                } else if (error.code === 'auth/user-not-found') {
+                    errorMessage = "No user found with that email address.";
+                }
+                showMessage(errorMessage, "error");
+            }
+        }
+
+        // Handle Logout
+        window.handleLogout = async function() { // Make global
+            try {
+                await signOut(auth);
+                showMessage("You have been logged out.", "success");
+                window.renderPage('home'); // Redirect to home page after logout
+            } catch (error) {
+                console.error("Error logging out:", error);
+                showMessage("Failed to log out. Please try again.", "error");
+            }
+        }
+
+        // Update Dashboard Data
+        async function updateDashboardData() {
+            const dashboardUserName = document.getElementById('dashboard-user-name');
+            const contributionBalance = document.getElementById('contribution-balance');
+            const loanBalance = document.getElementById('loan-balance');
+            const nextMeetingDate = document.getElementById('next-meeting-date');
+            const displayUserId = document.getElementById('display-user-id');
+
+            if (!auth || !auth.currentUser || !currentUserId) {
+                // This case should ideally be handled by the renderPage redirect,
+                // but as a fallback, ensure UI reflects unauthenticated state.
+                dashboardUserName.textContent = "Guest!";
+                contributionBalance.textContent = "KSh 0.00";
+                loanBalance.textContent = "KSh 0.00";
+                nextMeetingDate.textContent = "N/A";
+                displayUserId.textContent = "N/A (Not Logged In)";
+                return;
+            }
+
+            displayUserId.textContent = currentUserId;
+
+            // Display currentUserName immediately if available
+            if (currentUserName) {
+                dashboardUserName.textContent = currentUserName;
+            } else {
+                dashboardUserName.textContent = auth.currentUser.email || "Member!";
+            }
+
+            // Fetch real-time data from Firestore
+            const userProfileRef = doc(db, `artifacts/${appId}/users/${currentUserId}/user_profile`, currentUserId);
+            // Using onSnapshot for real-time updates on dashboard balances
+            if (window.unsubscribeUserProfile) {
+                window.unsubscribeUserProfile();
+            }
+
+            window.unsubscribeUserProfile = onSnapshot(userProfileRef, (userDoc) => {
+                if (userDoc.exists()) {
+                    currentUserData = userDoc.data(); // Update global currentUserData
+                    dashboardUserName.textContent = currentUserData.fullName || auth.currentUser.email || "Member!";
+                    contributionBalance.textContent = `KSh ${currentUserData.contribution_balance?.toFixed(2) || '0.00'}`;
+                    loanBalance.textContent = `KSh ${currentUserData.loan_balance?.toFixed(2) || '0.00'}`;
+                    nextMeetingDate.textContent = currentUserData.next_meeting_date || "To be announced";
+                } else {
+                    console.log("No user profile found for current user, or it was deleted.");
+                    // Set default placeholders if profile not found/deleted
+                    dashboardUserName.textContent = auth.currentUser.email || "Member!";
+                    contributionBalance.textContent = "KSh 0.00";
+                    loanBalance.textContent = "KSh 0.00";
+                    nextMeetingDate.textContent = "To be announced";
+                    // Consider logging out the user if their profile is unexpectedly gone
+                    // handleLogout();
+                }
+            }, (error) => {
+                console.error("Error fetching dashboard data (onSnapshot):", error);
+                showMessage("Failed to load dashboard data.", "error");
+                // Set default placeholders on error
+                dashboardUserName.textContent = auth.currentUser.email || "Member!";
+                contributionBalance.textContent = "KSh 0.00";
+                loanBalance.textContent = "KSh 0.00";
+                nextMeetingDate.textContent = "To be announced";
+            });
+        }
+
+        // Handle Add Meeting (Admin functionality - mock access control for now)
+        async function handleAddMeeting(event) {
+            event.preventDefault();
+            // Basic admin check - in real app, use Firebase Security Rules + backend roles
+            if (currentUserData.status !== 'admin') { // Assuming 'admin' status for demonstration
+                showMessage("Only administrators can add meetings.", "error");
+                return;
+            }
+
+            const date = document.getElementById('meeting-date').value;
+            const time = document.getElementById('meeting-time').value;
+            const location = document.getElementById('meeting-location').value.trim();
+            const agenda = document.getElementById('meeting-agenda').value.trim();
+
+            if (!date || !time || !location || !agenda) {
+                showMessage("All meeting fields are required.", "error");
+                return;
+            }
+
+            try {
+                await addDoc(collection(db, `artifacts/${appId}/public/data/meetings`), {
+                    date: new Date(`${date}T${time}`),
+                    time: time,
+                    location: location,
+                    agenda: agenda,
+                    title: `Monthly Meeting - ${new Date(`${date}T${time}`).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}`,
+                    createdAt: serverTimestamp()
+                });
+                showMessage("Meeting added successfully!", "success");
+                document.getElementById('add-meeting-form').reset();
+            } catch (error) {
+                console.error("Error adding meeting:", error);
+                showMessage("Failed to add meeting. Please try again.", "error");
+            }
+        }
+
+        // Handle Add Investment (Admin functionality)
+        async function handleAddInvestment(event) {
+            event.preventDefault();
+             // Basic admin check - in real app, use Firebase Security Rules + backend roles
+            if (currentUserData.status !== 'admin') {
+                showMessage("Only administrators can add investment opportunities.", "error");
+                return;
+            }
+
+            const name = document.getElementById('investment-name').value.trim();
+            const goal = parseFloat(document.getElementById('investment-goal').value);
+            const description = document.getElementById('investment-description').value.trim();
+
+            if (!name || isNaN(goal) || goal <= 0 || !description) {
+                showMessage("All investment fields are required and goal must be a positive number.", "error");
+                return;
+            }
+
+            try {
+                await addDoc(collection(db, `artifacts/${appId}/public/data/investments`), {
+                    name: name,
+                    goal: goal,
+                    description: description,
+                    pledged: 0, // Initial pledged amount
+                    estimatedReturn: "N/A", // Placeholder
+                    createdAt: serverTimestamp()
+                });
+                showMessage("Investment opportunity added successfully!", "success");
+                document.getElementById('add-investment-form').reset();
+            } catch (error) {
+                console.error("Error adding investment:", error);
+                showMessage("Failed to add investment. Please try again.", "error");
+            }
+        }
+
+        // Handle Pledge Contribution to Investment
+        async function handlePledgeContribution(investmentId, amount) {
+            if (!currentUserId) {
+                showMessage("Please log in to pledge to an investment.", "error");
+                window.renderPage('login');
+                return;
+            }
+            if (currentUserData.status !== 'approved') {
+                 showMessage("Your account is pending approval. You cannot pledge to investments yet.", "error");
+                 return;
+             }
+
+            const investmentRef = doc(db, `artifacts/${appId}/public/data/investments`, investmentId);
+            try {
+                const investmentDoc = await getDoc(investmentRef);
+                if (investmentDoc.exists()) {
+                    const currentPledged = investmentDoc.data().pledged || 0;
+                    await updateDoc(investmentRef, {
+                        pledged: currentPledged + amount
+                    });
+                    // Optionally, add a record of the user's pledge in their profile
+                    // await addDoc(collection(db, `artifacts/${appId}/users/${currentUserId}/investment_pledges`), {
+                    //     investmentId: investmentId,
+                    //     amount: amount,
+                    //     timestamp: serverTimestamp()
+                    // });
+                    showMessage(`Successfully pledged KSh ${amount.toFixed(2)} to this investment!`, "success");
+                } else {
+                    showMessage("Investment project not found.", "error");
+                }
+            } catch (error) {
+                console.error("Error pledging to investment:", error);
+                showMessage("Failed to pledge. Please try again.", "error");
+            }
+        }
+
+
+        // Handle Create Poll (Admin functionality)
+        async function handleCreatePoll(event) {
+            event.preventDefault();
+            // Basic admin check
+            if (currentUserData.status !== 'admin') {
+                showMessage("Only administrators can create polls.", "error");
+                return;
+            }
+
+            const question = document.getElementById('poll-question').value.trim();
+            const optionsInput = document.getElementById('poll-options').value.trim();
+
+            if (!question || !optionsInput) {
+                showMessage("Poll question and options are required.", "error");
+                return;
+            }
+
+            const optionsArray = optionsInput.split(',').map(opt => opt.trim()).filter(opt => opt.length > 0);
+            if (optionsArray.length < 2) {
+                showMessage("Please provide at least two options for the poll.", "error");
+                return;
+            }
+
+            // Initialize results object
+            const results = {};
+            optionsArray.forEach(option => {
+                results[option] = 0;
+            });
+
+            try {
+                await addDoc(collection(db, `artifacts/${appId}/public/data/polls`), {
+                    question: question,
+                    options: optionsArray,
+                    results: results,
+                    createdAt: serverTimestamp(),
+                    status: 'active'
+                });
+                showMessage("Poll created successfully!", "success");
+                document.getElementById('create-poll-form').reset();
+            } catch (error) {
+                console.error("Error creating poll:", error);
+                showMessage("Failed to create poll. Please try again.", "error");
+            }
+        }
+
+        // Handle Vote
+        async function handleVote(pollId, option) {
+            if (!currentUserId) {
+                showMessage("Please log in to vote.", "error");
+                window.renderPage('login');
+                return;
+            }
+            if (currentUserData.status !== 'approved') {
+                showMessage("Your account is pending approval. You cannot vote yet.", "error");
+                return;
+            }
+
+            const pollRef = doc(db, `artifacts/${appId}/public/data/polls`, pollId);
+            const userProfileRef = doc(db, `artifacts/${appId}/users/${currentUserId}/user_profile`, currentUserId);
+
+            try {
+                // Check if user has already voted for this poll
+                const userProfileDoc = await getDoc(userProfileRef);
+                const existingVotes = userProfileDoc.data()?.votes || {};
+                if (existingVotes[pollId]) {
+                    showMessage("You have already voted in this poll.", "error");
+                    return;
+                }
+
+                // Atomically update poll results
+                await updateDoc(pollRef, {
+                    [`results.${option}`]: (await getDoc(pollRef)).data()?.results?.[option] + 1 || 1
+                });
+
+                // Record user's vote in their profile
+                existingVotes[pollId] = option;
+                await updateDoc(userProfileRef, {
+                    votes: existingVotes
+                });
+
+                showMessage("Your vote has been cast successfully!", "success");
+            } catch (error) {
+                console.error("Error casting vote:", error);
+                showMessage("Failed to cast vote. Please try again.", "error");
+            }
+        }
+
+        // Handle Upload Document (Admin functionality)
+        async function handleUploadDocument(event) {
+            event.preventDefault();
+            // Basic admin check
+            if (currentUserData.status !== 'admin') {
+                showMessage("Only administrators can upload documents.", "error");
+                return;
+            }
+
+            const name = document.getElementById('document-name').value.trim();
+            const url = document.getElementById('document-url').value.trim();
+
+            if (!name || !url) {
+                showMessage("Document name and URL are required.", "error");
+                return;
+            }
+
+            try {
+                await addDoc(collection(db, `artifacts/${appId}/public/data/documents`), {
+                    name: name,
+                    url: url,
+                    uploadedBy: currentUserName || currentUserId,
+                    uploadedAt: serverTimestamp()
+                });
+                showMessage("Document uploaded successfully!", "success");
+                document.getElementById('upload-document-form').reset();
+            } catch (error) {
+                console.error("Error uploading document:", error);
+                showMessage("Failed to upload document. Please try again.", "error");
+            }
+        }
+
+        // Handle Post Forum Message (Placeholder for now, requires more complex forum logic)
+        async function handlePostForumMessage() {
+            const content = document.getElementById('forum-post-content').value.trim();
+            if (!content) {
+                showMessage("Message cannot be empty.", "error");
+                return;
+            }
+            if (!currentUserId) {
+                showMessage("Please log in to post messages.", "error");
+                return;
+            }
+            if (currentUserData.status !== 'approved') {
+                 showMessage("Your account is pending approval. You cannot post in the forum yet.", "error");
+                 return;
+             }
+
+            try {
+                // In a real forum, you might add to a 'forum_posts' collection in public data
+                // For now, it's just a mock and clears the input
+                showMessage("Your forum message has been posted (feature in development)!", "success");
+                document.getElementById('forum-post-content').value = '';
+                // You would typically reload forum posts here.
+                loadForumPosts(); // Reloads mock data for now
+            } catch (error) {
+                console.error("Error posting forum message:", error);
+                showMessage("Failed to post message.", "error");
+            }
+        }
+
+
+        // Initial page load based on URL hash or default to home
+        window.onload = () => {
+            const initialHash = window.location.hash.substring(1);
+            const hashParts = initialHash.split('/');
+            const mainPage = hashParts[0];
+            const subPage = hashParts[1];
+
+            if (mainPage && pages[mainPage]) {
+                window.renderPage(mainPage);
+                if (mainPage === 'dashboard' && subPage && dashboardSubpages[subPage]) {
+                    window.renderDashboardSubpage(subPage);
+                }
+            } else {
+                window.renderPage('home');
+            }
+        };
+    </script>
+</body>
+</html>
