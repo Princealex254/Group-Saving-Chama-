@@ -262,6 +262,7 @@
                 <h1>Prince Alex Digital</h1>
                 <p>Chama Admin Dashboard</p>
             </div>
+            <button id="logout-btn" class="btn">Logout</button> <!-- Added Logout Button -->
             <div class="hamburger">&#9776;</div>
         </header>
 
@@ -307,7 +308,7 @@
         // Import the functions you need from the SDKs you need
         import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-app.js";
         import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, signOut } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-auth.js";
-        import { getFirestore, collection, doc, getDoc, onSnapshot, updateDoc, addDoc, deleteDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore.js";
+        import { getFirestore, collection, doc, getDoc, onSnapshot, updateDoc, addDoc, deleteDoc, serverTimestamp, query, where, getDocs } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore.js";
         import { getStorage, ref, uploadBytes, getDownloadURL, deleteObject } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-storage.js";
         // Chart.js is already loaded as a global script, no need to import here.
 
@@ -335,6 +336,7 @@
             const contentContainer = document.getElementById('content-container');
             const sidebar = document.querySelector('.sidebar');
             const hamburger = document.querySelector('.hamburger');
+            const logoutBtn = document.getElementById('logout-btn'); // Get the logout button
 
             // Authentication State Listener
             onAuthStateChanged(auth, async (user) => { // Added async for getDoc inside onAuthStateChanged
@@ -371,6 +373,18 @@
                     await signInWithEmailAndPassword(auth, email, password); // Modular: signInWithEmailAndPassword(auth, ...)
                 } catch (error) {
                     document.getElementById('login-error').textContent = error.message;
+                }
+            });
+
+            // Handle Logout
+            logoutBtn.addEventListener('click', async () => {
+                try {
+                    await signOut(auth); // Sign out the user from Firebase
+                    // Optional: Redirect to login page or home page
+                    window.location.href = 'index.html'; // Redirect to the login page (or your desired page)
+                } catch (error) {
+                    console.error("Error signing out:", error);
+                    alert("Failed to log out. Please try again.");
                 }
             });
 
