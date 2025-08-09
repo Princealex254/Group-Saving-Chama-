@@ -472,7 +472,7 @@
                     dashboardLinkMobile.classList.remove('hidden');
                     logoutButtonMobile.classList.remove('hidden');
 
-                    // Fetch user's full name for dashboard welcome
+                    // Fetch user's full name for dashboard welcome and check Firestore profile
                     const userProfileRef = doc(db, `artifacts/${appId}/users/${currentUserId}/user_profile`, currentUserId);
                     try {
                         const userDoc = await getDoc(userProfileRef);
@@ -480,34 +480,19 @@
                             currentUserData = userDoc.data();
                             currentUserName = currentUserData.fullName || user.email;
                         } else {
-                            // Create a basic profile if none exists (e.g., for anonymous sign-in without full signup)
-                            // This block might be hit if a user signs in anonymously or without the custom signup form
-                            currentUserData = {
-                                fullName: user.email,
-                                email: user.email,
-                                phone: 'N/A',
-                                nationalId: 'N/A',
-                                contribution_balance: 0,
-                                loan_balance: 0,
-                                next_meeting_date: "To be announced",
-                                status: "pending_approval" // Default status for new users if profile doesn't exist
-                            };
-                            currentUserName = user.email;
-                            await setDoc(userProfileRef, currentUserData); // Save the basic profile
+                            // User exists in Firebase Auth but not in Firestore 'user_profile'
+                            console.warn("User exists in Firebase Auth but not in Firestore. Logging out.");
+                            showMessage("Your account exists but your profile is incomplete. Please sign up again or contact support.", "error");
+                            await signOut(auth); // Log out the user
+                            window.renderPage('signup'); // Redirect to signup
+                            return; // Stop further execution
                         }
                     } catch (error) {
                         console.error("Error fetching user profile:", error);
-                        currentUserData = {
-                            fullName: user.email,
-                            email: user.email,
-                            phone: 'N/A',
-                            nationalId: 'N/A',
-                            contribution_balance: 0,
-                            loan_balance: 0,
-                            next_meeting_date: "To be announced",
-                            status: "pending_approval" // Default status on error
-                        };
-                        currentUserName = user.email;
+                        showMessage("Failed to retrieve user profile. Logging out.", "error");
+                        await signOut(auth);
+                        window.renderPage('login');
+                        return;
                     }
                     // If currently on dashboard but not fully loaded, re-render
                     if (window.location.hash.includes('dashboard')) {
@@ -978,7 +963,7 @@
                     </div>
                 `,
                 'loan-history': `
-                    <h2 class="text-2xl font-bold text-maroon mb-6 text-center">Loan History</h2>
+                    <h2 class="2xl font-bold text-maroon mb-6 text-center">Loan History</h2>
                     <div class="bg-gray-50 p-6 rounded-lg shadow-md scroll-y">
                         <p class="text-gray-700 mb-4">Details of your past and active loans.</p>
                         <table class="table-auto" id="loan-history-table">
@@ -1406,7 +1391,7 @@
                     </div>
                 `;
 
-                // Check if user is approved before rendering dashboard subpages (excluding notifications)
+                // Check if user is approved before rendering dashboard subpages (excluding notifications, view-statements, update-profile)
                 if (currentUserData.status !== 'approved' && subpageName !== 'notifications' && subpageName !== 'view-statements' && subpageName !== 'update-profile') {
                      showMessage("This service is locked until your membership is approved by an admin.", "error");
                      if(dashboardSubpageContent) {
@@ -1543,8 +1528,15 @@
                     pollsList.addEventListener('click', (event) => {
                         if (event.target.classList.contains('vote-button')) {
                             const pollId = event.target.dataset.pollId;
-                            const option = event.target.dataset.option;
-                            handleVote(pollId, option);
+                            // Find the selected radio button within the same poll container
+                            const pollContainer = event.target.closest('.p-4');
+                            const selectedOptionInput = pollContainer.querySelector(`input[name="poll-${pollId}"]:checked`);
+                            if (selectedOptionInput) {
+                                const option = selectedOptionInput.value;
+                                handleVote(pollId, option);
+                            } else {
+                                showMessage("Please select an option to vote.", "error");
+                            }
                         }
                     });
                 }
@@ -1559,7 +1551,7 @@
                             const pledgeAmount = parseFloat(prompt("Enter amount to pledge:"));
                             if (!isNaN(pledgeAmount) && pledgeAmount > 0) {
                                 handlePledgeContribution(investmentId, pledgeAmount);
-                            } else if (pledgeAmount !== null) {
+                            } else if (pledgeAmount !== null) { // User clicked cancel or entered non-number
                                 showMessage("Please enter a valid pledge amount.", "error");
                             }
                         }
@@ -1846,7 +1838,7 @@
                 window.unsubscribePolls = onSnapshot(q, async (snapshot) => {
                     let htmlContent = `<p class="text-gray-700 mb-4">Participate in important Chama decisions through secure online voting.</p><div class="space-y-6">`;
                     let hasPolls = false;
-                    const userVotes = currentUserId ? (await getDoc(doc(db, `artifacts/${appId}/users/${currentUserId}/user_profile`, currentUserId))).data()?.votes || {} : {};
+                    const userVotes = currentUserData?.votes || {}; // Use optional chaining to prevent errors if currentUserData is null/undefined
 
                     snapshot.forEach((doc) => {
                         hasPolls = true;
@@ -2302,16 +2294,16 @@
                     const userCredential = await createUserWithEmailAndPassword(auth, email, password);
                     const user = userCredential.user;
 
-                    // Store additional user details in Firestore
+                    // Store additional user details in Firestore in artifacts/{appId}/users/{user.uid}/user_profile/{user.uid}
                     const userProfileRef = doc(db, `artifacts/${appId}/users/${user.uid}/user_profile`, user.uid);
                     await setDoc(userProfileRef, {
                         fullName: fullName,
                         email: email,
                         phone: phone,
                         nationalId: nationalId,
-                        createdAt: serverTimestamp(), // Use serverTimestamp for consistency (matches 'joinedAt' request)
-                        contribution_balance: 0, // Initial balance
-                        loan_balance: 0, // Initial loan balance
+                        createdAt: serverTimestamp(),
+                        contribution_balance: 0,
+                        loan_balance: 0,
                         next_meeting_date: "To be announced",
                         status: "pending_approval" // Set initial status as pending approval
                     });
@@ -2344,35 +2336,9 @@
                 }
 
                 try {
-                    const userCredential = await signInWithEmailAndPassword(auth, email, password);
-                    const user = userCredential.user;
-
-                    // Fetch user data after login to check status
-                    const userProfileRef = doc(db, `artifacts/${appId}/users/${user.uid}/user_profile`, user.uid);
-                    const userDoc = await getDoc(userProfileRef);
-
-                    if (userDoc.exists()) {
-                        currentUserData = userDoc.data();
-                        currentUserName = currentUserData.fullName || user.email;
-
-                        if (currentUserData.status === 'pending_approval') {
-                            showMessage("Login successful! Your account is pending approval, and access to services is limited.", "success");
-                            window.renderPage('dashboard'); // Redirect to dashboard
-                        } else if (currentUserData.status === 'approved') {
-                            showMessage("Logged in successfully!", "success");
-                            window.renderPage('dashboard'); // Redirect to dashboard
-                        } else {
-                            // Handle other unknown statuses or suspended accounts
-                            showMessage("Your account status is not active. Please contact support.", "error");
-                            signOut(auth); // Log out immediately if status is not approved
-                            window.renderPage('login');
-                        }
-                    } else {
-                        // This case indicates a Firebase user but no corresponding Firestore profile (shouldn't happen with current signup flow)
-                        showMessage("User profile not found. Please contact support.", "error");
-                        signOut(auth);
-                        window.renderPage('login');
-                    }
+                    // Firebase Auth will handle user sign-in. onAuthStateChanged listener will then check Firestore profile.
+                    await signInWithEmailAndPassword(auth, email, password);
+                    // No direct redirect here. The onAuthStateChanged listener will handle it based on Firestore profile existence.
 
                 } catch (error) {
                     console.error("Error logging in:", error);
