@@ -454,6 +454,7 @@
                         currentUserName = currentUserData.fullName || user.email;
                     } else {
                         // Create a basic profile if none exists (e.g., for anonymous sign-in without full signup)
+                        // This block might be hit if a user signs in anonymously or without the custom signup form
                         currentUserData = {
                             fullName: user.email,
                             email: user.email,
@@ -1774,13 +1775,20 @@
                 snapshot.forEach((doc) => {
                     hasInvestments = true;
                     const data = doc.data();
+                    // Check if the user has already pledged to this investment to disable the button
+                    const userPledged = currentUserData.investment_pledges ? currentUserData.investment_pledges[doc.id] : undefined;
+                    const pledgeButtonText = userPledged ? `Pledged KSh ${userPledged.toFixed(2)}` : 'Pledge Contribution';
+                    const pledgeButtonDisabled = userPledged ? 'disabled' : '';
+
                     htmlContent += `
                         <div class="p-4 bg-white rounded-lg shadow-sm border-l-4 border-maroon">
                             <h3 class="text-xl font-semibold text-maroon">Project: ${data.name}</h3>
                             <p class="text-gray-700 mt-2"><strong>Goal:</strong> KSh ${data.goal.toFixed(2)}</p>
                             <p class="text-700"><strong>Pledged:</strong> KSh ${(data.pledged || 0).toFixed(2)}</p>
                             <p class="text-gray-700"><strong>Description:</strong> ${data.description}</p>
-                            <button class="btn-primary mt-3 text-sm px-4 py-2 pledge-button" data-investment-id="${doc.id}">Pledge Contribution</button>
+                            <button class="btn-primary mt-3 text-sm px-4 py-2 pledge-button" data-investment-id="${doc.id}" ${pledgeButtonDisabled}>
+                                ${pledgeButtonText}
+                            </button>
                             <p class="text-sm text-gray-600 mt-2">Estimated Return: ${data.estimatedReturn || 'N/A'}</p>
                         </div>
                     `;
@@ -2073,6 +2081,7 @@
 
             try {
                 await addDoc(collection(db, `artifacts/${appId}/users/${currentUserId}/attendance`), {
+                    memberId: currentUserId, // Added memberId
                     date: new Date(`${date}T${time}`),
                     timestamp: serverTimestamp(),
                     meetingType: 'General Meeting', // Could be dynamic
@@ -2117,6 +2126,7 @@
             try {
                 // Add contribution to sub-collection
                 await addDoc(collection(db, `artifacts/${appId}/users/${currentUserId}/contributions`), {
+                    memberId: currentUserId, // Added memberId
                     amount: amount,
                     method: method,
                     status: 'Completed',
@@ -2172,6 +2182,7 @@
 
             try {
                 await addDoc(collection(db, `artifacts/${appId}/users/${currentUserId}/loans`), {
+                    memberId: currentUserId, // Added memberId
                     amount: amount,
                     repaymentPlan: plan,
                     purpose: purpose,
@@ -2271,7 +2282,7 @@
                     email: email,
                     phone: phone,
                     nationalId: nationalId,
-                    createdAt: serverTimestamp(), // Use serverTimestamp for consistency
+                    createdAt: serverTimestamp(), // Use serverTimestamp for consistency (matches 'joinedAt' request)
                     contribution_balance: 0, // Initial balance
                     loan_balance: 0, // Initial loan balance
                     next_meeting_date: "To be announced",
@@ -2534,23 +2545,44 @@
              }
 
             const investmentRef = doc(db, `artifacts/${appId}/public/data/investments`, investmentId);
+            const userProfileRef = doc(db, `artifacts/${appId}/users/${currentUserId}/user_profile`, currentUserId);
+            const userPledgeCollectionRef = collection(db, `artifacts/${appId}/users/${currentUserId}/investment_pledges`);
+
+
             try {
-                const investmentDoc = await getDoc(investmentRef);
-                if (investmentDoc.exists()) {
-                    const currentPledged = investmentDoc.data().pledged || 0;
-                    await updateDoc(investmentRef, {
-                        pledged: currentPledged + amount
-                    });
-                    // Optionally, add a record of the user's pledge in their profile
-                    // await addDoc(collection(db, `artifacts/${appId}/users/${currentUserId}/investment_pledges`), {
-                    //     investmentId: investmentId,
-                    //     amount: amount,
-                    //     timestamp: serverTimestamp()
-                    // });
-                    showMessage(`Successfully pledged KSh ${amount.toFixed(2)} to this investment!`, "success");
-                } else {
-                    showMessage("Investment project not found.", "error");
+                // Check if user has already pledged to this investment using the local currentUserData
+                if (currentUserData.investment_pledges && currentUserData.investment_pledges[investmentId]) {
+                    showMessage("You have already pledged to this investment. You cannot pledge again.", "error");
+                    return;
                 }
+
+                // 1. Add individual pledge record for the user
+                await addDoc(userPledgeCollectionRef, {
+                    memberId: currentUserId, // Explicitly linking to member
+                    investmentId: investmentId,
+                    amount: amount,
+                    timestamp: serverTimestamp()
+                });
+
+                // 2. Atomically update the total pledged amount on the main investment document
+                // Use a transaction to ensure atomicity for concurrent updates
+                const transactionResult = await db.runTransaction(async (transaction) => {
+                    const sfDoc = await transaction.get(investmentRef);
+                    if (!sfDoc.exists()) {
+                        throw "Investment document does not exist!";
+                    }
+                    const newPledged = (sfDoc.data().pledged || 0) + amount;
+                    transaction.update(investmentRef, { pledged: newPledged });
+                });
+
+                // 3. Update user profile to record that they have pledged to this investment
+                const updatedUserPledges = { ...currentUserData.investment_pledges, [investmentId]: amount };
+                await updateDoc(userProfileRef, {
+                    investment_pledges: updatedUserPledges
+                });
+                currentUserData.investment_pledges = updatedUserPledges; // Update local state
+
+                showMessage(`Successfully pledged KSh ${amount.toFixed(2)} to this investment!`, "success");
             } catch (error) {
                 console.error("Error pledging to investment:", error);
                 showMessage("Failed to pledge. Please try again.", "error");
@@ -2619,17 +2651,22 @@
             const userProfileRef = doc(db, `artifacts/${appId}/users/${currentUserId}/user_profile`, currentUserId);
 
             try {
-                // Check if user has already voted for this poll
-                const userProfileDoc = await getDoc(userProfileRef);
-                const existingVotes = userProfileDoc.data()?.votes || {};
+                // Check if user has already voted for this poll from local currentUserData
+                const existingVotes = currentUserData.votes || {};
                 if (existingVotes[pollId]) {
                     showMessage("You have already voted in this poll.", "error");
                     return;
                 }
 
-                // Atomically update poll results
-                await updateDoc(pollRef, {
-                    [`results.${option}`]: (await getDoc(pollRef)).data()?.results?.[option] + 1 || 1
+                // Atomically update poll results using a transaction to prevent race conditions
+                await db.runTransaction(async (transaction) => {
+                    const sfDoc = await transaction.get(pollRef);
+                    if (!sfDoc.exists()) {
+                        throw "Poll document does not exist!";
+                    }
+                    const newResults = { ...sfDoc.data().results };
+                    newResults[option] = (newResults[option] || 0) + 1;
+                    transaction.update(pollRef, { results: newResults });
                 });
 
                 // Record user's vote in their profile
@@ -2637,6 +2674,7 @@
                 await updateDoc(userProfileRef, {
                     votes: existingVotes
                 });
+                currentUserData.votes = existingVotes; // Update local state
 
                 showMessage("Your vote has been cast successfully!", "success");
             } catch (error) {
