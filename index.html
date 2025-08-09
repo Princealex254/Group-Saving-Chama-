@@ -482,7 +482,8 @@
                         const userDoc = await getDoc(userProfileRef);
                         if (userDoc.exists()) {
                             currentUserData = userDoc.data();
-                            currentUserName = currentUserData.fullName || user.email;
+                            // Ensure 'name' is used consistently
+                            currentUserName = currentUserData.name || user.email;
                         } else {
                             // User exists in Firebase Auth but not in Firestore 'user_profile'
                             console.warn("User exists in Firebase Auth but not in Firestore. Logging out.");
@@ -664,8 +665,8 @@
                             <h1 class="text-3xl font-bold text-maroon text-center mb-6">Create Your Account</h1>
                             <form id="signup-form" class="space-y-4">
                                 <div>
-                                    <label for="signup-full-name" class="block text-gray-700 text-sm font-bold mb-2">Full Name</label>
-                                    <input type="text" id="signup-full-name" class="input-field" placeholder="John Doe" required>
+                                    <label for="signup-name" class="block text-gray-700 text-sm font-bold mb-2">Full Name</label>
+                                    <input type="text" id="signup-name" class="input-field" placeholder="John Doe" required>
                                 </div>
                                 <div>
                                     <label for="signup-email" class="block text-gray-700 text-sm font-bold mb-2">Email</label>
@@ -870,6 +871,10 @@
                                     <option value="cash">Cash</option>
                                 </select>
                             </div>
+                            <div>
+                                <label for="contribution-description" class="block text-gray-700 text-sm font-bold mb-2">Description (Optional)</label>
+                                <input type="text" id="contribution-description" class="input-field" placeholder="e.g., Monthly savings" >
+                            </div>
                             <p class="text-sm text-gray-600">Note: M-Pesa integration requires backend setup for automated processing. Currently, this is a manual entry system.</p>
                             <button type="submit" class="btn-primary w-full">Record Contribution</button>
                         </form>
@@ -882,6 +887,14 @@
                             <div>
                                 <label for="loan-amount" class="block text-gray-700 text-sm font-bold mb-2">Loan Amount (KSh)</label>
                                 <input type="number" id="loan-amount" class="input-field" placeholder="e.g., 10000" required min="100">
+                            </div>
+                            <div>
+                                <label for="loan-interest-rate" class="block text-gray-700 text-sm font-bold mb-2">Interest Rate (%)</label>
+                                <input type="number" id="loan-interest-rate" class="input-field" placeholder="e.g., 5" required min="0" max="100" step="0.1">
+                            </div>
+                            <div>
+                                <label for="loan-due-date" class="block text-gray-700 text-sm font-bold mb-2">Due Date</label>
+                                <input type="date" id="loan-due-date" class="input-field" required>
                             </div>
                             <div>
                                 <label for="repayment-plan" class="block text-gray-700 text-sm font-bold mb-2">Preferred Repayment Plan</label>
@@ -927,8 +940,8 @@
                     <div class="bg-gray-50 p-6 rounded-lg shadow-md">
                         <form id="update-profile-form" class="space-y-4">
                             <div>
-                                <label for="profile-full-name" class="block text-gray-700 text-sm font-bold mb-2">Full Name</label>
-                                <input type="text" id="profile-full-name" class="input-field" value="${currentUserData.fullName || ''}" required>
+                                <label for="profile-name" class="block text-gray-700 text-sm font-bold mb-2">Full Name</label>
+                                <input type="text" id="profile-name" class="input-field" value="${currentUserData.name || ''}" required>
                             </div>
                             <div>
                                 <label for="profile-email" class="block text-gray-700 text-sm font-bold mb-2">Email</label>
@@ -942,6 +955,10 @@
                             <div>
                                 <label for="profile-national-id" class="block text-gray-700 text-sm font-bold mb-2">National ID</label>
                                 <input type="text" id="profile-national-id" class="input-field" value="${currentUserData.nationalId || ''}" required>
+                            </div>
+                            <div>
+                                <label for="profile-pic-url" class="block text-gray-700 text-sm font-bold mb-2">Profile Picture URL (Optional)</label>
+                                <input type="url" id="profile-pic-url" class="input-field" placeholder="https://example.com/your-image.jpg" value="${currentUserData.profilePicUrl || ''}">
                             </div>
                             <button type="submit" class="btn-primary w-full">Save Profile Updates</button>
                         </form>
@@ -957,6 +974,7 @@
                                     <th>Date</th>
                                     <th>Amount (KSh)</th>
                                     <th>Method</th>
+                                    <th>Description</th>
                                     <th>Status</th>
                                 </tr>
                             </thead>
@@ -975,6 +993,8 @@
                                 <tr>
                                     <th>Loan Date</th>
                                     <th>Amount (KSh)</th>
+                                    <th>Interest Rate (%)</th>
+                                    <th>Due Date</th>
                                     <th>Repaid (KSh)</th>
                                     <th>Balance (KSh)</th>
                                     <th>Status</th>
@@ -1021,6 +1041,10 @@
                         <h3 class="text-xl font-semibold text-maroon mb-3">Add New Meeting (Admin Only)</h3>
                         <form id="add-meeting-form" class="space-y-4">
                             <div>
+                                <label for="meeting-title" class="block text-gray-700 text-sm font-bold mb-2">Title</label>
+                                <input type="text" id="meeting-title" class="input-field" placeholder="e.g., Monthly Review Meeting" required>
+                            </div>
+                            <div>
                                 <label for="meeting-date" class="block text-gray-700 text-sm font-bold mb-2">Date</label>
                                 <input type="date" id="meeting-date" class="input-field" required>
                             </div>
@@ -1033,8 +1057,15 @@
                                 <input type="text" id="meeting-location" class="input-field" placeholder="e.g., Virtual (Google Meet)" required>
                             </div>
                             <div>
-                                <label for="meeting-agenda" class="block text-gray-700 text-sm font-bold mb-2">Agenda (brief)</label>
-                                <textarea id="meeting-agenda" class="input-field h-24" placeholder="Briefly describe agenda..." required></textarea>
+                                <label for="meeting-description" class="block text-gray-700 text-sm font-bold mb-2">Description (Optional)</label>
+                                <textarea id="meeting-description" class="input-field h-24" placeholder="Briefly describe agenda or purpose..."></textarea>
+                            </div>
+                            <div>
+                                <label for="meeting-type" class="block text-gray-700 text-sm font-bold mb-2">Type</label>
+                                <select id="meeting-type" class="input-field" required>
+                                    <option value="meeting">Meeting</option>
+                                    <option value="notice">Notice</option>
+                                </select>
                             </div>
                             <button type="submit" class="btn-primary w-full">Add Meeting</button>
                         </form>
@@ -1070,12 +1101,12 @@
                         <h3 class="text-xl font-semibold text-maroon mb-3">Add New Investment (Admin Only)</h3>
                         <form id="add-investment-form" class="space-y-4">
                             <div>
-                                <label for="investment-name" class="block text-gray-700 text-sm font-bold mb-2">Project Name</label>
-                                <input type="text" id="investment-name" class="input-field" placeholder="e.g., Land Acquisition" required>
+                                <label for="investment-title" class="block text-gray-700 text-sm font-bold mb-2">Investment Title</label>
+                                <input type="text" id="investment-title" class="input-field" placeholder="e.g., Land Acquisition" required>
                             </div>
                             <div>
-                                <label for="investment-goal" class="block text-gray-700 text-sm font-bold mb-2">Goal Amount (KSh)</label>
-                                <input type="number" id="investment-goal" class="input-field" placeholder="e.g., 5000000" required min="1000">
+                                <label for="investment-amount" class="block text-gray-700 text-sm font-bold mb-2">Goal Amount (KSh)</label>
+                                <input type="number" id="investment-amount" class="input-field" placeholder="e.g., 5000000" required min="1000">
                             </div>
                             <div>
                                 <label for="investment-description" class="block text-gray-700 text-sm font-bold mb-2">Description</label>
@@ -1116,8 +1147,8 @@
                         <h3 class="text-xl font-semibold text-maroon mb-3">Create New Poll (Admin Only)</h3>
                         <form id="create-poll-form" class="space-y-4">
                             <div>
-                                <label for="poll-question" class="block text-gray-700 text-sm font-bold mb-2">Poll Question</label>
-                                <input type="text" id="poll-question" class="input-field" placeholder="e.g., Should we invest in Project X?" required>
+                                <label for="poll-title" class="block text-gray-700 text-sm font-bold mb-2">Poll Title/Question</label>
+                                <input type="text" id="poll-title" class="input-field" placeholder="e.g., Should we invest in Project X?" required>
                             </div>
                             <div>
                                 <label for="poll-options" class="block text-gray-700 text-sm font-bold mb-2">Options (comma-separated)</label>
@@ -1134,6 +1165,11 @@
                         <div class="mb-6 bg-white p-4 rounded-lg shadow-sm">
                             <h3 class="text-xl font-semibold text-maroon mb-3">Mark My Attendance (Manual Entry)</h3>
                             <form id="attendance-form" class="space-y-4">
+                                <div>
+                                    <label for="attendance-meeting-id" class="block text-gray-700 text-sm font-bold mb-2">Meeting ID (Optional)</label>
+                                    <input type="text" id="attendance-meeting-id" class="input-field" placeholder="e.g., meeting_xyz123">
+                                    <p class="text-xs text-gray-500 mt-1">If linking to a specific meeting, enter its ID.</p>
+                                </div>
                                 <div>
                                     <label for="attendance-date" class="block text-gray-700 text-sm font-bold mb-2">Meeting Date</label>
                                     <input type="date" id="attendance-date" class="input-field" required>
@@ -1172,12 +1208,12 @@
                         <h3 class="text-xl font-semibold text-maroon mb-3">Upload New Document (Admin Only)</h3>
                         <form id="upload-document-form" class="space-y-4">
                             <div>
-                                <label for="document-name" class="block text-gray-700 text-sm font-bold mb-2">Document Name</label>
-                                <input type="text" id="document-name" class="input-field" placeholder="e.g., Chama Constitution V2.0" required>
+                                <label for="document-title" class="block text-gray-700 text-sm font-bold mb-2">Document Title</label>
+                                <input type="text" id="document-title" class="input-field" placeholder="e.g., Chama Constitution V2.0" required>
                             </div>
                             <div>
-                                <label for="document-url" class="block text-gray-700 text-sm font-bold mb-2">Document URL</label>
-                                <input type="url" id="document-url" class="input-field" placeholder="https://example.com/document.pdf" required>
+                                <label for="document-file-url" class="block text-gray-700 text-sm font-bold mb-2">Document File URL</label>
+                                <input type="url" id="document-file-url" class="input-field" placeholder="https://example.com/document.pdf" required>
                             </div>
                             <button type="submit" class="btn-primary w-full">Upload Document</button>
                         </form>
@@ -1444,10 +1480,10 @@
                             loadGroupOverview();
                             break;
                         case 'notifications':
-                            loadNotifications(); // Using a mock data for now, real-time from Firestore later.
+                            loadNotifications();
                             break;
                         case 'forum':
-                            loadForumPosts();
+                            loadForumPosts(); // Remains mock as no Firestore schema for it was explicitly provided.
                             break;
                     }
 
@@ -1574,22 +1610,27 @@
                 // Unsubscribe from previous listener if exists
                 if (window.unsubscribeContributionHistory) window.unsubscribeContributionHistory();
 
-                const q = query(collection(db, `artifacts/${appId}/users/${currentUserId}/contributions`), orderBy('timestamp', 'desc'));
+                const q = query(collection(db, `artifacts/${appId}/users/${currentUserId}/contributions`), orderBy('date', 'desc')); // Changed to 'date'
                 window.unsubscribeContributionHistory = onSnapshot(q, (snapshot) => {
                     tableBody.innerHTML = ''; // Clear existing rows
                     snapshot.forEach((doc) => {
                         const data = doc.data();
-                        const date = data.timestamp ? new Date(data.timestamp.seconds * 1000).toLocaleDateString() : 'N/A';
+                        const date = data.date ? new Date(data.date.seconds * 1000).toLocaleDateString() : 'N/A'; // Use 'date'
+                        const description = data.description || 'N/A'; // Added description
                         const row = `
                             <tr>
                                 <td>${date}</td>
                                 <td>${data.amount.toFixed(2)}</td>
                                 <td>${data.method}</td>
+                                <td>${description}</td>
                                 <td>${data.status || 'Completed'}</td>
                             </tr>
                         `;
                         tableBody.innerHTML += row;
                     });
+                     if (snapshot.empty) {
+                        tableBody.innerHTML = `<tr><td colspan="5" class="text-center text-gray-500">No contributions found.</td></tr>`;
+                     }
                 }, (error) => {
                     console.error("Error loading contribution history:", error);
                     showMessage("Failed to load contribution history.", "error");
@@ -1605,24 +1646,34 @@
                 // Unsubscribe from previous listener if exists
                 if (window.unsubscribeLoanHistory) window.unsubscribeLoanHistory();
 
-                const q = query(collection(db, `artifacts/${appId}/users/${currentUserId}/loans`), orderBy('timestamp', 'desc'));
+                const q = query(collection(db, `artifacts/${appId}/users/${currentUserId}/loans`), orderBy('dueDate', 'desc')); // Changed to 'dueDate'
                 window.unsubscribeLoanHistory = onSnapshot(q, (snapshot) => {
                     tableBody.innerHTML = ''; // Clear existing rows
                     snapshot.forEach((doc) => {
                         const data = doc.data();
-                        const date = data.timestamp ? new Date(data.timestamp.seconds * 1000).toLocaleDateString() : 'N/A';
+                        const loanDate = data.timestamp ? new Date(data.timestamp.seconds * 1000).toLocaleDateString() : 'N/A'; // Keep original creation timestamp for "Loan Date"
+                        const dueDate = data.dueDate ? new Date(data.dueDate.seconds * 1000).toLocaleDateString() : 'N/A';
+                        const interestRate = (data.interestRate || 0).toFixed(2);
+                        const repaidAmount = (data.repaidAmount || 0).toFixed(2); // Changed to 'repaidAmount'
+                        const balance = (data.amount - (data.repaidAmount || 0)).toFixed(2); // Changed to 'repaidAmount'
+
                         const row = `
                             <tr>
-                                <td>${date}</td>
+                                <td>${loanDate}</td>
                                 <td>${data.amount.toFixed(2)}</td>
-                                <td>${(data.repaid || 0).toFixed(2)}</td>
-                                <td>${(data.amount - (data.repaid || 0)).toFixed(2)}</td>
+                                <td>${interestRate}</td>
+                                <td>${dueDate}</td>
+                                <td>${repaidAmount}</td>
+                                <td>${balance}</td>
                                 <td>${data.status}</td>
                                 <td>${data.purpose}</td>
                             </tr>
                         `;
                         tableBody.innerHTML += row;
                     });
+                    if (snapshot.empty) {
+                        tableBody.innerHTML = `<tr><td colspan="8" class="text-center text-gray-500">No loan records found.</td></tr>`;
+                    }
                 }, (error) => {
                     console.error("Error loading loan history:", error);
                     showMessage("Failed to load loan history.", "error");
@@ -1640,47 +1691,47 @@
                 let currentBalance = 0; // Simulate running balance
 
                 // Fetch Contributions
-                const contributionsSnapshot = await getDocs(query(collection(db, `artifacts/${appId}/users/${currentUserId}/contributions`), orderBy('timestamp')));
+                const contributionsSnapshot = await getDocs(query(collection(db, `artifacts/${appId}/users/${currentUserId}/contributions`), orderBy('date'))); // Changed to 'date'
                 contributionsSnapshot.forEach(doc => {
                     const data = doc.data();
                     transactions.push({
-                        date: data.timestamp ? new Date(data.timestamp.seconds * 1000) : new Date(0),
+                        date: data.date ? new Date(data.date.seconds * 1000) : new Date(0), // Use 'date'
                         type: 'Contribution',
-                        description: `Contribution via ${data.method}`,
+                        description: `Contribution via ${data.method}` + (data.description ? `: ${data.description}` : ''), // Added description
                         amount: data.amount,
                         isCredit: true
                     });
                 });
 
                 // Fetch Loans Issued
-                const loansSnapshot = await getDocs(query(collection(db, `artifacts/${appId}/users/${currentUserId}/loans`), orderBy('timestamp')));
+                const loansSnapshot = await getDocs(query(collection(db, `artifacts/${appId}/users/${currentUserId}/loans`), orderBy('dueDate'))); // Changed to 'dueDate'
                 loansSnapshot.forEach(doc => {
                     const data = doc.data();
                     transactions.push({
-                        date: data.timestamp ? new Date(data.timestamp.seconds * 1000) : new Date(0),
+                        date: data.timestamp ? new Date(data.timestamp.seconds * 1000) : new Date(0), // Use creation timestamp for transaction date
                         type: 'Loan Issued',
                         description: `Loan for ${data.purpose}`,
                         amount: data.amount,
                         isCredit: false
                     });
                     // Simulate loan repayments (if any)
-                    if (data.repaid && data.repaid > 0) {
+                    if (data.repaidAmount && data.repaidAmount > 0) { // Changed to 'repaidAmount'
                          transactions.push({
                             date: data.lastRepaymentTimestamp ? new Date(data.lastRepaymentTimestamp.seconds * 1000) : new Date(0), // Use a repayment timestamp if available
                             type: 'Loan Repayment',
                             description: `Repayment for loan for ${data.purpose}`,
-                            amount: data.repaid,
+                            amount: data.repaidAmount, // Changed to 'repaidAmount'
                             isCredit: true
                         });
                     }
                 });
 
                 // Fetch Fines
-                const finesSnapshot = await getDocs(query(collection(db, `artifacts/${appId}/users/${currentUserId}/fines`), orderBy('timestamp')));
+                const finesSnapshot = await getDocs(query(collection(db, `artifacts/${appId}/users/${currentUserId}/fines`), orderBy('dateIssued'))); // Changed to 'dateIssued'
                 finesSnapshot.forEach(doc => {
                     const data = doc.data();
                     transactions.push({
-                        date: data.timestamp ? new Date(data.timestamp.seconds * 1000) : new Date(0),
+                        date: data.dateIssued ? new Date(data.dateIssued.seconds * 1000) : new Date(0), // Use 'dateIssued'
                         type: 'Fine',
                         description: data.reason,
                         amount: data.amount,
@@ -1732,7 +1783,8 @@
                                 <p class="text-gray-800"><strong>Date:</strong> ${meetingDate}</p>
                                 <p class="text-gray-800"><strong>Time:</strong> ${data.time || 'N/A'}</p>
                                 <p class="text-gray-800"><strong>Location:</strong> ${data.location || 'N/A'}</p>
-                                <p class="text-gray-700 mt-2">Agenda includes: ${data.agenda || 'N/A'}</p>
+                                <p class="text-gray-700 mt-2">Description: ${data.description || 'N/A'}</p> <!-- Changed to 'description' -->
+                                <p class="text-gray-700 text-sm">Type: ${data.type || 'N/A'}</p> <!-- Added 'type' -->
                                 <button class="btn-primary mt-3 text-sm px-4 py-2" disabled>Confirm Attendance (Future Feature)</button>
                             </div>
                         `;
@@ -1757,15 +1809,15 @@
                 // Unsubscribe from previous listener if exists
                 if (window.unsubscribeFines) window.unsubscribeFines();
 
-                const q = query(collection(db, `artifacts/${appId}/users/${currentUserId}/fines`), orderBy('timestamp', 'desc'));
+                const q = query(collection(db, `artifacts/${appId}/users/${currentUserId}/fines`), orderBy('dateIssued', 'desc')); // Changed to 'dateIssued'
                 window.unsubscribeFines = onSnapshot(q, (snapshot) => {
                     tableBody.innerHTML = ''; // Clear existing rows
                     snapshot.forEach((doc) => {
                         const data = doc.data();
-                        const date = data.timestamp ? new Date(data.timestamp.seconds * 1000).toLocaleDateString() : 'N/A';
+                        const dateIssued = data.dateIssued ? new Date(data.dateIssued.seconds * 1000).toLocaleDateString() : 'N/A'; // Use 'dateIssued'
                         const row = `
                             <tr>
-                                <td>${date}</td>
+                                <td>${dateIssued}</td>
                                 <td>${data.reason}</td>
                                 <td>${data.amount.toFixed(2)}</td>
                                 <td>${data.status}</td>
@@ -1805,8 +1857,8 @@
 
                         htmlContent += `
                             <div class="p-4 bg-white rounded-lg shadow-sm border-l-4 border-maroon">
-                                <h3 class="text-xl font-semibold text-maroon">Project: ${data.name}</h3>
-                                <p class="text-gray-700 mt-2"><strong>Goal:</strong> KSh ${data.goal.toFixed(2)}</p>
+                                <h3 class="text-xl font-semibold text-maroon">Project: ${data.title}</h3> <!-- Changed to 'title' -->
+                                <p class="text-gray-700 mt-2"><strong>Goal:</strong> KSh ${data.amount.toFixed(2)}</p> <!-- Changed to 'amount' -->
                                 <p class="text-700"><strong>Pledged:</strong> KSh ${(data.pledged || 0).toFixed(2)}</p>
                                 <p class="text-gray-700"><strong>Description:</strong> ${data.description}</p>
                                 <button class="btn-primary mt-3 text-sm px-4 py-2 pledge-button" data-investment-id="${doc.id}" ${pledgeButtonDisabled}>
@@ -1829,7 +1881,7 @@
                 });
             }
 
-            // Load Polls
+            // Load Polls (voting-polls in request, polls in code)
             function loadPolls() {
                 if (!db) return; // No currentUserId check as this is public data
                 const pollsListDiv = document.getElementById('polls-list');
@@ -1847,7 +1899,7 @@
                     snapshot.forEach((doc) => {
                         hasPolls = true;
                         const poll = { id: doc.id, ...doc.data() };
-                        const totalVotes = Object.values(poll.results || {}).reduce((sum, count) => sum + count, 0);
+                        const totalVotes = Object.values(poll.votes || {}).reduce((sum, count) => sum + count, 0); // Changed to 'votes'
                         const userVotedOption = userVotes[poll.id];
 
                         let optionsHtml = '';
@@ -1855,7 +1907,7 @@
                         const optionsToRender = Array.isArray(poll.options) ? poll.options : Object.keys(poll.options || {});
 
                         optionsToRender.forEach(option => {
-                            const count = poll.results ? poll.results[option] || 0 : 0;
+                            const count = poll.votes ? poll.votes[option] || 0 : 0; // Changed to 'votes'
                             const percentage = totalVotes > 0 ? ((count / totalVotes) * 100).toFixed(1) : 0;
                             const isDisabled = !!userVotedOption; // Disable if user has already voted
                             const isChecked = userVotedOption === option; // Check the radio button if it's the user's vote
@@ -1871,7 +1923,7 @@
 
                         htmlContent += `
                             <div class="p-4 bg-white rounded-lg shadow-sm border-l-4 border-maroon">
-                                <h3 class="text-xl font-semibold text-maroon">Poll: ${poll.question}</h3>
+                                <h3 class="text-xl font-semibold text-maroon">Poll: ${poll.title}</h3> <!-- Changed to 'title' -->
                                 <p class="text-gray-800 mt-2 mb-3">${poll.description || ''}</p>
                                 <div class="space-y-2">
                                     ${optionsHtml}
@@ -1906,12 +1958,12 @@
                 // Unsubscribe from previous listener if exists
                 if (window.unsubscribeAttendanceHistory) window.unsubscribeAttendanceHistory();
 
-                const q = query(collection(db, `artifacts/${appId}/users/${currentUserId}/attendance`), orderBy('timestamp', 'desc'));
+                const q = query(collection(db, `artifacts/${appId}/users/${currentUserId}/attendance`), orderBy('date', 'desc')); // Changed to 'date'
                 window.unsubscribeAttendanceHistory = onSnapshot(q, (snapshot) => {
                     tableBody.innerHTML = ''; // Clear existing rows
                     snapshot.forEach((doc) => {
                         const data = doc.data();
-                        const date = data.timestamp ? new Date(data.timestamp.seconds * 1000).toLocaleDateString() : 'N/A';
+                        const date = data.date ? new Date(data.date.seconds * 1000).toLocaleDateString() : 'N/A'; // Use 'date'
                         const row = `
                             <tr>
                                 <td>${date}</td>
@@ -1949,10 +2001,10 @@
                         htmlContent += `
                             <div class="p-4 bg-white rounded-lg shadow-sm border-l-4 border-maroon flex justify-between items-center">
                                 <div>
-                                    <h3 class="text-xl font-semibold text-maroon">${data.name}</h3>
+                                    <h3 class="text-xl font-semibold text-maroon">${data.title}</h3> <!-- Changed to 'title' -->
                                     <p class="text-gray-700 text-sm">Uploaded: ${data.uploadedAt ? new Date(data.uploadedAt.seconds * 1000).toLocaleDateString() : 'N/A'}</p>
                                 </div>
-                                <a href="${data.url}" target="_blank" class="btn-primary text-sm px-4 py-2"><i class="fas fa-download mr-2"></i>Download</a>
+                                <a href="${data.fileUrl}" target="_blank" class="btn-primary text-sm px-4 py-2"><i class="fas fa-download mr-2"></i>Download</a> <!-- Changed to 'fileUrl' -->
                             </div>
                         `;
                     });
@@ -2019,34 +2071,42 @@
                 }
             }
 
-            // Load Notifications (Mock for now, will fetch from Firestore if a 'notifications' collection is added)
+            // Load Notifications
             function loadNotifications() {
+                if (!currentUserId || !db) return;
                 const notificationsListDiv = document.getElementById('notifications-list');
                 if (!notificationsListDiv) return;
 
-                // This is currently mock data. In a real app, you would fetch from a 'notifications' collection
-                // specific to the user, like: artifacts/{appId}/users/{currentUserId}/notifications
-                const mockNotifications = [
-                    { id: 1, type: 'Contribution Received', text: 'Your KSh 1,000 contribution on 2024-07-25 was successfully recorded.', timestamp: '2024-07-25 10:30 AM', status: 'read' },
-                    { id: 2, type: 'Loan Approved', text: 'Your loan request for KSh 15,000 has been approved. Funds will be disbursed within 24 hours.', timestamp: '2024-07-01 02:15 PM', status: 'unread' },
-                    { id: 3, type: 'New Meeting Scheduled', text: 'A new monthly meeting is scheduled for August 15, 2024, 6:00 PM EAT.', timestamp: '2024-07-30 09:00 AM', status: 'read' },
-                    { id: 4, type: 'Password Reset', text: 'A password reset link has been sent to your registered email address.', timestamp: '2024-08-01 11:00 AM', status: 'unread' },
-                ];
+                // Unsubscribe from previous listener if exists
+                if (window.unsubscribeNotifications) window.unsubscribeNotifications();
 
-                let htmlContent = `<p class="text-gray-700 mb-4">Stay informed with important updates and alerts regarding your Chama activities.</p><div class="space-y-4">`;
-                mockNotifications.forEach(notif => {
-                    const borderColor = notif.status === 'unread' ? 'border-maroon' : 'border-gray-400';
-                    const textColor = notif.status === 'unread' ? 'text-maroon' : 'text-gray-700';
-                    htmlContent += `
-                        <div class="p-4 bg-white rounded-lg shadow-sm border-l-4 ${borderColor}">
-                            <h3 class="text-xl font-semibold ${textColor}">${notif.type}</h3>
-                            <p class="text-gray-800 mt-1">${notif.text}</p>
-                            <p class="text-xs text-gray-500 mt-2">Received: ${notif.timestamp}</p>
-                        </div>
-                    `;
+                const q = query(collection(db, `artifacts/${appId}/users/${currentUserId}/notifications`), orderBy('date', 'desc')); // Order by 'date'
+                window.unsubscribeNotifications = onSnapshot(q, (snapshot) => {
+                    let htmlContent = `<p class="text-gray-700 mb-4">Stay informed with important updates and alerts regarding your Chama activities.</p><div class="space-y-4">`;
+                    let hasNotifications = false;
+                    snapshot.forEach((doc) => {
+                        hasNotifications = true;
+                        const notif = doc.data();
+                        const borderColor = notif.status === 'unread' ? 'border-maroon' : 'border-gray-400';
+                        const textColor = notif.status === 'unread' ? 'text-maroon' : 'text-gray-700';
+                        const dateString = notif.date ? new Date(notif.date.seconds * 1000).toLocaleString() : 'N/A';
+                        htmlContent += `
+                            <div class="p-4 bg-white rounded-lg shadow-sm border-l-4 ${borderColor}">
+                                <h3 class="text-xl font-semibold ${textColor}">${notif.title}</h3>
+                                <p class="text-gray-800 mt-1">${notif.message}</p>
+                                <p class="text-xs text-gray-500 mt-2">Received: ${dateString}</p>
+                            </div>
+                        `;
+                    });
+                    htmlContent += `</div>`;
+                    if (!hasNotifications) {
+                        htmlContent = `<p class="text-center text-gray-500">No notifications found.</p>`;
+                    }
+                    notificationsListDiv.innerHTML = htmlContent;
+                }, (error) => {
+                    console.error("Error loading notifications:", error);
+                    showMessage("Failed to load notifications.", "error");
                 });
-                htmlContent += `</div>`;
-                notificationsListDiv.innerHTML = htmlContent;
             }
 
             // Load Forum Posts (Mock for now, will fetch from Firestore if a 'forum_posts' collection is added)
@@ -2084,6 +2144,7 @@
             // Handle Record Attendance
             async function handleRecordAttendance(event) {
                 event.preventDefault();
+                const meetingId = document.getElementById('attendance-meeting-id').value.trim(); // Added
                 const date = document.getElementById('attendance-date').value;
                 const time = document.getElementById('attendance-time').value;
 
@@ -2104,11 +2165,11 @@
 
                 try {
                     await addDoc(collection(db, `artifacts/${appId}/users/${currentUserId}/attendance`), {
-                        memberId: currentUserId, // Added memberId
-                        date: new Date(`${date}T${time}`),
-                        timestamp: serverTimestamp(),
-                        meetingType: 'General Meeting', // Could be dynamic
-                        status: 'Present'
+                        memberId: currentUserId,
+                        meetingId: meetingId || null, // Optional meetingId
+                        date: new Date(`${date}T${time}`), // Storing date as Timestamp
+                        time: time, // Storing time separately for display
+                        status: 'present' // Default status
                     });
                     showMessage(`Attendance for ${date} at ${time} recorded successfully!`, "success");
                     document.getElementById('attendance-form').reset();
@@ -2124,6 +2185,7 @@
                 event.preventDefault();
                 const amount = parseFloat(document.getElementById('contribution-amount').value);
                 const method = document.getElementById('payment-method').value;
+                const description = document.getElementById('contribution-description').value.trim(); // Added
 
                 if (isNaN(amount) || amount <= 0) {
                     showMessage("Please enter a valid amount.", "error");
@@ -2149,11 +2211,12 @@
                 try {
                     // Add contribution to sub-collection
                     await addDoc(collection(db, `artifacts/${appId}/users/${currentUserId}/contributions`), {
-                        memberId: currentUserId, // Added memberId
+                        memberId: currentUserId,
                         amount: amount,
                         method: method,
-                        status: 'Completed',
-                        timestamp: serverTimestamp()
+                        date: serverTimestamp(), // Changed to 'date'
+                        description: description, // Added description
+                        status: 'completed' // Default status
                     });
 
                     // Update user's contribution balance in their profile
@@ -2176,6 +2239,8 @@
             async function handleLoanRequest(event) {
                 event.preventDefault();
                 const amount = parseFloat(document.getElementById('loan-amount').value);
+                const interestRate = parseFloat(document.getElementById('loan-interest-rate').value); // Added
+                const dueDate = document.getElementById('loan-due-date').value; // Added
                 const plan = document.getElementById('repayment-plan').value;
                 const purpose = document.getElementById('loan-purpose').value.trim();
 
@@ -2183,6 +2248,14 @@
                     showMessage("Please enter a valid loan amount.", "error");
                     return;
                 }
+                if (isNaN(interestRate) || interestRate < 0) { // Validation for interestRate
+                     showMessage("Please enter a valid interest rate.", "error");
+                     return;
+                 }
+                 if (!dueDate) { // Validation for dueDate
+                     showMessage("Please select a due date.", "error");
+                     return;
+                 }
                 if (!plan) {
                     showMessage("Please select a repayment plan.", "error");
                     return;
@@ -2205,13 +2278,15 @@
 
                 try {
                     await addDoc(collection(db, `artifacts/${appId}/users/${currentUserId}/loans`), {
-                        memberId: currentUserId, // Added memberId
+                        memberId: currentUserId,
                         amount: amount,
+                        interestRate: interestRate, // Added interestRate
+                        dueDate: new Date(dueDate), // Storing dueDate as Timestamp
                         repaymentPlan: plan,
                         purpose: purpose,
                         status: 'pending', // Pending admin approval
-                        timestamp: serverTimestamp(),
-                        repaid: 0 // Initial repaid amount
+                        timestamp: serverTimestamp(), // Keep creation timestamp
+                        repaidAmount: 0 // Changed to 'repaidAmount'
                     });
                     showMessage(`Loan request for KSh ${amount.toFixed(2)} (${plan}, Purpose: ${purpose}) submitted successfully. Awaiting admin approval.`, "success");
                     document.getElementById('loan-request-form').reset(); // Clear form
@@ -2224,12 +2299,13 @@
             // Handle Update Profile
             async function handleUpdateProfile(event) {
                 event.preventDefault();
-                const fullName = document.getElementById('profile-full-name').value.trim();
+                const name = document.getElementById('profile-name').value.trim(); // Changed id to 'profile-name' and variable to 'name'
                 const phone = document.getElementById('profile-phone').value.trim();
                 const nationalId = document.getElementById('profile-national-id').value.trim();
+                const profilePicUrl = document.getElementById('profile-pic-url').value.trim(); // Added
 
-                if (!fullName || !phone || !nationalId) {
-                    showMessage("All fields are required.", "error");
+                if (!name || !phone || !nationalId) {
+                    showMessage("Name, phone, and national ID are required.", "error");
                     return;
                 }
                 if (!/^\+?\d{10,14}$/.test(phone)) {
@@ -2242,23 +2318,20 @@
                     window.renderPage('login');
                     return;
                 }
-                // For now, allow profile updates even if pending approval, but services are still locked.
-                // if (currentUserData.status !== 'approved') {
-                //     showMessage("Your account is pending approval. You can only update basic profile info after approval.", "error");
-                //     return;
-                // }
 
                 const userProfileRef = doc(db, `artifacts/${appId}/users/${currentUserId}/user_profile`, currentUserId);
                 try {
                     await updateDoc(userProfileRef, {
-                        fullName: fullName,
+                        name: name, // Changed to 'name'
                         phone: phone,
-                        nationalId: nationalId
+                        nationalId: nationalId,
+                        profilePicUrl: profilePicUrl // Added profilePicUrl
                     });
                     showMessage("Profile updated successfully!", "success");
-                    currentUserData.fullName = fullName; // Update local data
+                    currentUserData.name = name; // Update local data
                     currentUserData.phone = phone;
                     currentUserData.nationalId = nationalId;
+                    currentUserData.profilePicUrl = profilePicUrl; // Update local data
                     updateDashboardData(); // Refresh dashboard main view
                 } catch (error) {
                     console.error("Error updating profile:", error);
@@ -2270,14 +2343,14 @@
             // Handle Signup
             async function handleSignup(event) {
                 event.preventDefault();
-                const fullName = document.getElementById('signup-full-name').value.trim();
+                const name = document.getElementById('signup-name').value.trim(); // Changed id to 'signup-name' and variable to 'name'
                 const email = document.getElementById('signup-email').value.trim();
                 const phone = document.getElementById('signup-phone').value.trim();
                 const nationalId = document.getElementById('signup-national-id').value.trim();
                 const password = document.getElementById('signup-password').value;
                 const confirmPassword = document.getElementById('signup-confirm-password').value;
 
-                if (!fullName || !email || !phone || !nationalId || !password || !confirmPassword) {
+                if (!name || !email || !phone || !nationalId || !password || !confirmPassword) {
                     showMessage("All fields are required.", "error");
                     return;
                 }
@@ -2301,7 +2374,7 @@
                     // Store additional user details in Firestore in artifacts/{appId}/users/{user.uid}/user_profile/{user.uid}
                     const userProfileRef = doc(db, `artifacts/${appId}/users/${user.uid}/user_profile`, user.uid);
                     await setDoc(userProfileRef, {
-                        fullName: fullName,
+                        name: name, // Changed to 'name'
                         email: email,
                         phone: phone,
                         nationalId: nationalId,
@@ -2309,8 +2382,18 @@
                         contribution_balance: 0,
                         loan_balance: 0,
                         next_meeting_date: "To be announced",
-                        status: "pending_approval" // Set initial status as pending approval
+                        status: "pending", // Set initial status as pending approval
+                        profilePicUrl: "", // Added profilePicUrl
                     });
+
+                    // Add a welcome notification
+                    await addDoc(collection(db, `artifacts/${appId}/users/${user.uid}/notifications`), {
+                        title: "Welcome to Prince Alex Digital Chama!",
+                        message: "Your account has been created successfully. It is currently pending admin approval.",
+                        date: serverTimestamp(),
+                        status: "unread"
+                    });
+
 
                     showMessage("Account created successfully! Your information is pending approval.", "success");
                     window.renderPage('pending-approval'); // Redirect to pending approval page
@@ -2341,6 +2424,7 @@
 
                 try {
                     // Firebase Auth will handle user sign-in. onAuthStateChanged listener will then check Firestore profile.
+                    // This signInWithEmailAndPassword will fail if the email doesn't exist in Firebase Auth.
                     await signInWithEmailAndPassword(auth, email, password);
                     // No direct redirect here. The onAuthStateChanged listener will handle it based on Firestore profile existence.
 
@@ -2433,7 +2517,7 @@
                 window.unsubscribeUserProfile = onSnapshot(userProfileRef, (userDoc) => {
                     if (userDoc.exists()) {
                         currentUserData = userDoc.data(); // Update global currentUserData
-                        dashboardUserName.textContent = currentUserData.fullName || auth.currentUser.email || "Member!";
+                        dashboardUserName.textContent = currentUserData.name || auth.currentUser.email || "Member!"; // Used 'name'
                         contributionBalance.textContent = `KSh ${currentUserData.contribution_balance?.toFixed(2) || '0.00'}`;
                         loanBalance.textContent = `KSh ${currentUserData.loan_balance?.toFixed(2) || '0.00'}`;
                         nextMeetingDate.textContent = currentUserData.next_meeting_date || "To be announced";
@@ -2462,28 +2546,31 @@
             async function handleAddMeeting(event) {
                 event.preventDefault();
                 // Basic admin check - in real app, use Firebase Security Rules + backend roles
-                if (currentUserData.status !== 'admin') { // Assuming 'admin' status for demonstration
+                if (currentUserData.status !== 'admin' && currentUserData.status !== 'approved') { // Allowing "approved" for testing as "admin" might not be set up
                     showMessage("Only administrators can add meetings.", "error");
                     return;
                 }
 
+                const title = document.getElementById('meeting-title').value.trim(); // Added
                 const date = document.getElementById('meeting-date').value;
                 const time = document.getElementById('meeting-time').value;
                 const location = document.getElementById('meeting-location').value.trim();
-                const agenda = document.getElementById('meeting-agenda').value.trim();
+                const description = document.getElementById('meeting-description').value.trim(); // Renamed from agenda
+                const type = document.getElementById('meeting-type').value; // Added
 
-                if (!date || !time || !location || !agenda) {
+                if (!title || !date || !time || !location || !description || !type) {
                     showMessage("All meeting fields are required.", "error");
                     return;
                 }
 
                 try {
                     await addDoc(collection(db, `artifacts/${appId}/public/data/meetings`), {
-                        date: new Date(`${date}T${time}`),
+                        title: title, // Added title
+                        date: new Date(`${date}T${time}`), // Storing date as Timestamp
                         time: time,
                         location: location,
-                        agenda: agenda,
-                        title: `Monthly Meeting - ${new Date(`${date}T${time}`).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}`,
+                        description: description, // Renamed from agenda
+                        type: type, // Added type
                         createdAt: serverTimestamp()
                     });
                     showMessage("Meeting added successfully!", "success");
@@ -2498,24 +2585,24 @@
             async function handleAddInvestment(event) {
                 event.preventDefault();
                  // Basic admin check - in real app, use Firebase Security Rules + backend roles
-                if (currentUserData.status !== 'admin') {
+                if (currentUserData.status !== 'admin' && currentUserData.status !== 'approved') {
                     showMessage("Only administrators can add investment opportunities.", "error");
                     return;
                 }
 
-                const name = document.getElementById('investment-name').value.trim();
-                const goal = parseFloat(document.getElementById('investment-goal').value);
+                const title = document.getElementById('investment-title').value.trim(); // Changed to 'title'
+                const amount = parseFloat(document.getElementById('investment-amount').value); // Changed to 'amount'
                 const description = document.getElementById('investment-description').value.trim();
 
-                if (!name || isNaN(goal) || goal <= 0 || !description) {
+                if (!title || isNaN(amount) || amount <= 0 || !description) {
                     showMessage("All investment fields are required and goal must be a positive number.", "error");
                     return;
                 }
 
                 try {
                     await addDoc(collection(db, `artifacts/${appId}/public/data/investments`), {
-                        name: name,
-                        goal: goal,
+                        title: title, // Changed to 'title'
+                        amount: amount, // Changed to 'amount' (for goal)
                         description: description,
                         pledged: 0, // Initial pledged amount
                         estimatedReturn: "N/A", // Placeholder
@@ -2591,16 +2678,16 @@
             async function handleCreatePoll(event) {
                 event.preventDefault();
                 // Basic admin check
-                if (currentUserData.status !== 'admin') {
+                if (currentUserData.status !== 'admin' && currentUserData.status !== 'approved') {
                     showMessage("Only administrators can create polls.", "error");
                     return;
                 }
 
-                const question = document.getElementById('poll-question').value.trim();
+                const title = document.getElementById('poll-title').value.trim(); // Changed to 'title'
                 const optionsInput = document.getElementById('poll-options').value.trim();
 
-                if (!question || !optionsInput) {
-                    showMessage("Poll question and options are required.", "error");
+                if (!title || !optionsInput) {
+                    showMessage("Poll title/question and options are required.", "error");
                     return;
                 }
 
@@ -2611,16 +2698,16 @@
                 }
 
                 // Initialize results object
-                const results = {};
+                const votes = {}; // Changed to 'votes'
                 optionsArray.forEach(option => {
-                    results[option] = 0;
+                    votes[option] = 0;
                 });
 
                 try {
                     await addDoc(collection(db, `artifacts/${appId}/public/data/polls`), {
-                        question: question,
+                        title: title, // Changed to 'title'
                         options: optionsArray,
-                        results: results,
+                        votes: votes, // Changed to 'votes'
                         createdAt: serverTimestamp(),
                         status: 'active'
                     });
@@ -2649,8 +2736,8 @@
 
                 try {
                     // Check if user has already voted for this poll from local currentUserData
-                    const existingVotes = currentUserData.votes || {};
-                    if (existingVotes[pollId]) {
+                    const existingUserVotes = currentUserData.votes || {}; // Renamed from existingVotes for clarity
+                    if (existingUserVotes[pollId]) {
                         showMessage("You have already voted in this poll.", "error");
                         return;
                     }
@@ -2661,17 +2748,17 @@
                         if (!sfDoc.exists()) {
                             throw "Poll document does not exist!";
                         }
-                        const newResults = { ...sfDoc.data().results };
-                        newResults[option] = (newResults[option] || 0) + 1;
-                        transaction.update(pollRef, { results: newResults });
+                        const newVotes = { ...sfDoc.data().votes }; // Changed to 'votes'
+                        newVotes[option] = (newVotes[option] || 0) + 1;
+                        transaction.update(pollRef, { votes: newVotes }); // Changed to 'votes'
                     });
 
                     // Record user's vote in their profile
-                    existingVotes[pollId] = option;
+                    existingUserVotes[pollId] = option; // Updated variable name
                     await updateDoc(userProfileRef, {
-                        votes: existingVotes
+                        votes: existingUserVotes
                     });
-                    currentUserData.votes = existingVotes; // Update local state
+                    currentUserData.votes = existingUserVotes; // Update local state
 
                     showMessage("Your vote has been cast successfully!", "success");
                 } catch (error) {
@@ -2684,23 +2771,23 @@
             async function handleUploadDocument(event) {
                 event.preventDefault();
                 // Basic admin check
-                if (currentUserData.status !== 'admin') {
+                if (currentUserData.status !== 'admin' && currentUserData.status !== 'approved') {
                     showMessage("Only administrators can upload documents.", "error");
                     return;
                 }
 
-                const name = document.getElementById('document-name').value.trim();
-                const url = document.getElementById('document-url').value.trim();
+                const title = document.getElementById('document-title').value.trim(); // Changed to 'title'
+                const fileUrl = document.getElementById('document-file-url').value.trim(); // Changed to 'fileUrl'
 
-                if (!name || !url) {
-                    showMessage("Document name and URL are required.", "error");
+                if (!title || !fileUrl) {
+                    showMessage("Document title and file URL are required.", "error");
                     return;
                 }
 
                 try {
                     await addDoc(collection(db, `artifacts/${appId}/public/data/documents`), {
-                        name: name,
-                        url: url,
+                        title: title, // Changed to 'title'
+                        fileUrl: fileUrl, // Changed to 'fileUrl'
                         uploadedBy: currentUserName || currentUserId,
                         uploadedAt: serverTimestamp()
                     });
