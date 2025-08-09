@@ -1,0 +1,2831 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Prince Alex Digital - Chama Admin Dashboard</title>
+    
+    <!-- Firebase SDKs -->
+    <script src="https://www.gstatic.com/firebasejs/9.1.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.1.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.1.0/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.1.0/firebase-storage-compat.js"></script>
+    
+    <!-- Chart.js for graphs -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@3.7.0/dist/chart.min.js"></script>
+    
+    <style>
+        /* General Styles and Branding */
+        :root {
+            --maroon: #800000;
+            --white: #ffffff;
+            --light-gray: #f4f4f4;
+            --dark-gray: #333;
+        }
+
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            background-color: var(--light-gray);
+            color: var(--dark-gray);
+        }
+
+        .container {
+            display: flex;
+            min-height: 100vh;
+        }
+
+        /* Header */
+        header {
+            background-color: var(--maroon);
+            color: var(--white);
+            padding: 1rem 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+        
+        .header-brand h1 {
+            margin: 0;
+            font-size: 1.5rem;
+        }
+
+        /* Sidebar */
+        .sidebar {
+            width: 250px;
+            background-color: var(--dark-gray);
+            color: var(--white);
+            padding-top: 20px;
+            box-shadow: 2px 0 5px rgba(0, 0, 0, 0.1);
+            transition: transform 0.3s ease-in-out;
+            transform: translateX(0);
+        }
+
+        .sidebar ul {
+            list-style: none;
+            padding: 0;
+        }
+
+        .sidebar ul li a {
+            display: block;
+            padding: 15px 20px;
+            color: var(--white);
+            text-decoration: none;
+            transition: background-color 0.2s;
+        }
+
+        .sidebar ul li a:hover,
+        .sidebar ul li a.active {
+            background-color: var(--maroon);
+        }
+        
+        /* Main Content */
+        .main-content {
+            flex-grow: 1;
+            padding: 2rem;
+            transition: margin-left 0.3s;
+        }
+
+        h2 {
+            color: var(--maroon);
+            border-bottom: 2px solid var(--maroon);
+            padding-bottom: 0.5rem;
+            margin-top: 0;
+        }
+
+        /* Buttons */
+        .btn {
+            padding: 10px 15px;
+            border: none;
+            cursor: pointer;
+            border-radius: 5px;
+            font-weight: bold;
+            transition: background-color 0.3s ease;
+        }
+
+        .btn-primary {
+            background-color: var(--maroon);
+            color: var(--white);
+        }
+
+        .btn-primary:hover {
+            background-color: #a00000;
+        }
+        
+        /* Forms and Inputs */
+        .form-group {
+            margin-bottom: 1rem;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 0.5rem;
+        }
+
+        .form-group input,
+        .form-group select {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+        }
+        
+        /* Tables */
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 1rem;
+            background-color: var(--white);
+        }
+
+        .data-table th, .data-table td {
+            text-align: left;
+            padding: 12px 15px;
+            border-bottom: 1px solid #ddd;
+        }
+
+        .data-table th {
+            background-color: var(--maroon);
+            color: var(--white);
+            cursor: pointer;
+        }
+
+        .data-table tbody tr:nth-child(even) {
+            background-color: #f9f9f9;
+        }
+        
+        /* Modals */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            justify-content: center;
+            align-items: center;
+        }
+
+        .modal-content {
+            background-color: var(--white);
+            padding: 20px;
+            border-radius: 5px;
+            width: 90%;
+            max-width: 500px;
+        }
+        
+        /* Footer */
+        footer {
+            text-align: center;
+            padding: 1rem;
+            background-color: var(--dark-gray);
+            color: var(--white);
+            position: sticky;
+            bottom: 0;
+        }
+        
+        /* Mobile Styles */
+        .hamburger {
+            display: none;
+            font-size: 2rem;
+            cursor: pointer;
+            color: var(--white);
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                flex-direction: column;
+            }
+            .sidebar {
+                position: fixed;
+                width: 100%;
+                height: 100%;
+                z-index: 999;
+                transform: translateX(-100%);
+            }
+            .sidebar.active {
+                transform: translateX(0);
+            }
+            .main-content {
+                margin-left: 0;
+            }
+            header {
+                flex-direction: row-reverse;
+            }
+            .hamburger {
+                display: block;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Login Page -->
+    <div id="login-page">
+        <header>
+            <div class="header-brand">
+                <h1>Prince Alex Digital</h1>
+                <p>Chama Admin Login</p>
+            </div>
+        </header>
+        <div style="max-width: 400px; margin: 50px auto; padding: 20px; background: #fff; border-radius: 8px;">
+            <h2>Admin Login</h2>
+            <form id="login-form">
+                <div class="form-group">
+                    <label for="email">Email</label>
+                    <input type="email" id="email" required>
+                </div>
+                <div class="form-group">
+                    <label for="password">Password</label>
+                    <input type="password" id="password" required>
+                </div>
+                <button type="submit" class="btn btn-primary">Login</button>
+                <p id="login-error" style="color: red; margin-top: 10px;"></p>
+            </form>
+        </div>
+    </div>
+
+    <!-- Main Dashboard -->
+    <div id="dashboard" style="display: none;">
+        <header>
+            <div class="header-brand">
+                <h1>Prince Alex Digital</h1>
+                <p>Chama Admin Dashboard</p>
+            </div>
+            <div class="hamburger">&#9776;</div>
+        </header>
+
+        <div class="container">
+            <nav class="sidebar">
+                <ul>
+                    <li><a href="#" data-section="dashboard-overview" class="active">Dashboard Overview</a></li>
+                    <li><a href="#" data-section="members-management">Members Management</a></li>
+                    <li><a href="#" data-section="contributions-management">Contributions Management</a></li>
+                    <li><a href="#" data-section="loan-management">Loan Management</a></li>
+                    <li><a href="#" data-section="meetings-notices">Meetings & Notices</a></li>
+                    <li><a href="#" data-section="fines-penalties">Fines & Penalties</a></li>
+                    <li><a href="#" data-section="investments">Investments</a></li>
+                    <li><a href="#" data-section="voting-polls">Voting & Polls</a></li>
+                    <li><a href="#" data-section="documents-management">Documents Management</a></li>
+                    <li><a href="#" data-section="attendance">Attendance</a></li>
+                    <li><a href="#" data-section="notifications">Notifications</a></li>
+                    <li><a href="#" data-section="reports">Reports</a></li>
+                </ul>
+            </nav>
+
+            <main class="main-content" id="content-container">
+                <!-- Content will be dynamically loaded here -->
+            </main>
+        </div>
+
+        <footer>
+            <p>&copy; 2025 Prince Alex Digital. All rights reserved.</p>
+        </footer>
+    </div>
+
+    <!-- Confirmation Modal -->
+    <div id="confirmation-modal" class="modal">
+        <div class="modal-content">
+            <h3>Confirm Action</h3>
+            <p id="modal-message">Are you sure you want to perform this action?</p>
+            <button id="modal-confirm-btn" class="btn btn-primary">Yes</button>
+            <button id="modal-cancel-btn" class="btn">No</button>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // YOUR FIREBASE CONFIGURATION - IMPORTANT: Replace with your actual project details
+            const firebaseConfig = {
+                apiKey: "AIzaSyC8-TWRr_vOMTv72scXxu-9l5uVHRVputo",
+                authDomain: "group-saving-chama.firebaseapp.com",
+                projectId: "group-saving-chama",
+                storageBucket: "group-saving-chama.firebasestorage.app",
+                messagingSenderId: "570981365925",
+                appId: "1:570981365925:web:42422e51e4e02c6ab4f54c"
+            };
+
+            // Initialize Firebase
+            let auth, firestore, storage;
+            try {
+                firebase.initializeApp(firebaseConfig);
+                auth = firebase.auth();
+                firestore = firebase.firestore();
+                storage = firebase.storage();
+            } catch (initError) {
+                console.error("Firebase initialization failed:", initError);
+                document.getElementById('login-error').textContent = "Failed to initialize app. Check Firebase config and console for errors.";
+                // Potentially hide the login form or show a more critical error message
+                return; // Stop script execution if Firebase fails to initialize
+            }
+
+            // DOM Elements
+            const loginPage = document.getElementById('login-page');
+            const dashboardPage = document.getElementById('dashboard');
+            const loginForm = document.getElementById('login-form');
+            const contentContainer = document.getElementById('content-container');
+            const sidebar = document.querySelector('.sidebar');
+            const hamburger = document.querySelector('.hamburger');
+
+            // Authentication State Listener
+            auth.onAuthStateChanged(user => {
+                if (user) {
+                    // Check if the user is an admin
+                    // This assumes your 'admins' collection stores documents with the admin's email as the ID
+                    firestore.collection('admins').doc(user.email).get().then(doc => {
+                        if (doc.exists) {
+                            loginPage.style.display = 'none';
+                            dashboardPage.style.display = 'block';
+                            renderSection('dashboard-overview'); // Load default section
+                        } else {
+                            // Not an admin, redirect
+                            auth.signOut();
+                            // Redirect to the main site login (replace with your actual main site login URL)
+                            window.location.href = 'https://your-main-chama-site.com/login.html'; 
+                        }
+                    }).catch(error => {
+                        console.error("Error checking admin status:", error);
+                        document.getElementById('login-error').textContent = "Error checking admin status. Please try again.";
+                        // In case of an error, sign out to prevent unauthorized access
+                        auth.signOut();
+                    });
+                } else {
+                    loginPage.style.display = 'block';
+                    dashboardPage.style.display = 'none';
+                }
+            });
+
+            // Handle Login
+            loginForm.addEventListener('submit', (e) => {
+                e.preventDefault();
+                const email = loginForm.email.value;
+                const password = loginForm.password.value;
+                auth.signInWithEmailAndPassword(email, password)
+                    .catch(error => {
+                        document.getElementById('login-error').textContent = error.message;
+                    });
+            });
+
+            // Handle Sidebar Navigation
+            sidebar.addEventListener('click', (e) => {
+                if (e.target.tagName === 'A') {
+                    e.preventDefault();
+                    // Remove active class from previous active link
+                    document.querySelector('.sidebar a.active')?.classList.remove('active');
+                    // Add active class to clicked link
+                    e.target.classList.add('active');
+                    const section = e.target.dataset.section;
+                    renderSection(section);
+                    // Hide sidebar on mobile after selection
+                    if (window.innerWidth <= 768) {
+                        sidebar.classList.remove('active');
+                    }
+                }
+            });
+
+            // Hamburger Menu Toggle
+            hamburger.addEventListener('click', () => {
+                sidebar.classList.toggle('active');
+            });
+
+            // Dynamic Content Rendering Function
+            function renderSection(sectionName) {
+                contentContainer.innerHTML = ''; // Clear previous content
+                switch (sectionName) {
+                    case 'dashboard-overview':
+                        renderDashboardOverview();
+                        break;
+                    case 'members-management':
+                        renderMembersManagement();
+                        break;
+                    case 'contributions-management':
+                        renderContributionsManagement();
+                        break;
+                    case 'loan-management':
+                        renderLoanManagement();
+                        break;
+                    case 'meetings-notices':
+                        renderMeetingsNotices();
+                        break;
+                    case 'fines-penalties':
+                        renderFinesPenalties();
+                        break;
+                    case 'investments':
+                        renderInvestments();
+                        break;
+                    case 'voting-polls':
+                        renderVotingPolls();
+                        break;
+                    case 'documents-management':
+                        renderDocumentsManagement();
+                        break;
+                    case 'attendance':
+                        renderAttendance();
+                        break;
+                    case 'notifications':
+                        renderNotifications();
+                        break;
+                    case 'reports':
+                        renderReports();
+                        break;
+                    default:
+                        contentContainer.innerHTML = `<h2>${sectionName.replace('-', ' ').toUpperCase()}</h2><p>Content for ${sectionName} will be loaded here.</p>`;
+                }
+            }
+            
+            // --- SECTION-SPECIFIC RENDERING FUNCTIONS ---
+            // These functions will be responsible for fetching data from Firestore,
+            // rendering the HTML structure for each section, and adding event listeners.
+
+            async function renderDashboardOverview() {
+                contentContainer.innerHTML = `
+                    <h2>Dashboard Overview</h2>
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 2rem;">
+                        <div style="background-color: var(--white); padding: 1.5rem; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1);">
+                            <h3>Total Members</h3>
+                            <p id="total-members" style="font-size: 2em; font-weight: bold; color: var(--maroon);">...</p>
+                        </div>
+                        <div style="background-color: var(--white); padding: 1.5rem; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1);">
+                            <h3>Total Contributions</h3>
+                            <p id="total-contributions" style="font-size: 2em; font-weight: bold; color: var(--maroon);">...</p>
+                        </div>
+                        <div style="background-color: var(--white); padding: 1.5rem; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1);">
+                            <h3>Total Loans Issued</h3>
+                            <p id="total-loans-issued" style="font-size: 2em; font-weight: bold; color: var(--maroon);">...</p>
+                        </div>
+                        <div style="background-color: var(--white); padding: 1.5rem; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1);">
+                            <h3>Funds Available</h3>
+                            <p id="funds-available" style="font-size: 2em; font-weight: bold; color: var(--maroon);">...</p>
+                        </div>
+                        <div style="background-color: var(--white); padding: 1.5rem; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1);">
+                            <h3>Meetings Scheduled</h3>
+                            <p id="meetings-scheduled" style="font-size: 2em; font-weight: bold; color: var(--maroon);">...</p>
+                        </div>
+                        <div style="background-color: var(--white); padding: 1.5rem; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1);">
+                            <h3>Fines Issued</h3>
+                            <p id="fines-issued" style="font-size: 2em; font-weight: bold; color: var(--maroon);">...</p>
+                        </div>
+                        <div style="background-color: var(--white); padding: 1.5rem; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1);">
+                            <h3>Investment Projects</h3>
+                            <p id="investment-projects" style="font-size: 2em; font-weight: bold; color: var(--maroon);">...</p>
+                        </div>
+                    </div>
+                    <div class="charts-container" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 2rem;">
+                        <div style="background-color: var(--white); padding: 1.5rem; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1);">
+                            <h3>Contributions Trend</h3>
+                            <canvas id="contributions-chart"></canvas>
+                        </div>
+                        <div style="background-color: var(--white); padding: 1.5rem; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1);">
+                            <h3>Loan Disbursement vs Repayment</h3>
+                            <canvas id="loans-chart"></canvas>
+                        </div>
+                    </div>`;
+                
+                // Fetch and display counts
+                firestore.collection('members').onSnapshot(snapshot => {
+                    document.getElementById('total-members').textContent = snapshot.size;
+                });
+                firestore.collection('contributions').onSnapshot(snapshot => {
+                    let total = 0;
+                    snapshot.forEach(doc => total += doc.data().amount || 0);
+                    document.getElementById('total-contributions').textContent = `Ksh ${total.toFixed(2)}`;
+                    
+                    // Chart.js for Contributions Trend (example data)
+                    const monthlyContributions = {}; // Aggregate contributions by month
+                    snapshot.forEach(doc => {
+                        const date = doc.data().date.toDate(); // Assuming date is a Firebase Timestamp
+                        const monthYear = `${date.getFullYear()}-${date.getMonth() + 1}`;
+                        monthlyContributions[monthYear] = (monthlyContributions[monthYear] || 0) + doc.data().amount;
+                    });
+
+                    const labels = Object.keys(monthlyContributions).sort();
+                    const data = labels.map(label => monthlyContributions[label]);
+
+                    const ctx1 = document.getElementById('contributions-chart').getContext('2d');
+                    new Chart(ctx1, {
+                        type: 'line',
+                        data: {
+                            labels: labels,
+                            datasets: [{
+                                label: 'Monthly Contributions',
+                                data: data,
+                                borderColor: getComputedStyle(document.documentElement).getPropertyValue('--maroon'),
+                                backgroundColor: 'rgba(128, 0, 0, 0.2)',
+                                fill: true,
+                                tension: 0.1
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            scales: {
+                                y: {
+                                    beginAtZero: true,
+                                    title: {
+                                        display: true,
+                                        text: 'Amount (Ksh)'
+                                    }
+                                },
+                                x: {
+                                    title: {
+                                        display: true,
+                                        text: 'Month'
+                                    }
+                                }
+                            }
+                        }
+                    });
+                });
+
+                firestore.collection('loans').onSnapshot(snapshot => {
+                    let totalIssued = 0;
+                    let totalRepaid = 0;
+                    snapshot.forEach(doc => {
+                        const loan = doc.data();
+                        totalIssued += loan.amount || 0;
+                        totalRepaid += loan.repaidAmount || 0; // Assuming a 'repaidAmount' field
+                    });
+                    document.getElementById('total-loans-issued').textContent = `Ksh ${totalIssued.toFixed(2)}`;
+                    
+                    // Chart.js for Loan Disbursement vs Repayment
+                    const ctx2 = document.getElementById('loans-chart').getContext('2d');
+                    new Chart(ctx2, {
+                        type: 'bar',
+                        data: {
+                            labels: ['Loans'],
+                            datasets: [
+                                {
+                                    label: 'Disbursed',
+                                    data: [totalIssued],
+                                    backgroundColor: getComputedStyle(document.documentElement).getPropertyValue('--maroon'),
+                                },
+                                {
+                                    label: 'Repaid',
+                                    data: [totalRepaid],
+                                    backgroundColor: '#4CAF50', // Green for repaid
+                                }
+                            ]
+                        },
+                        options: {
+                            responsive: true,
+                            scales: {
+                                y: {
+                                    beginAtZero: true,
+                                    title: {
+                                        display: true,
+                                        text: 'Amount (Ksh)'
+                                    }
+                                }
+                            }
+                        }
+                    });
+                });
+
+                // Implement similar onSnapshot listeners for other dashboard counts
+                firestore.collection('meetings').onSnapshot(snapshot => {
+                    document.getElementById('meetings-scheduled').textContent = snapshot.size;
+                });
+                firestore.collection('fines').onSnapshot(snapshot => {
+                    document.getElementById('fines-issued').textContent = snapshot.size;
+                });
+                firestore.collection('investments').onSnapshot(snapshot => {
+                    document.getElementById('investment-projects').textContent = snapshot.size;
+                });
+
+                // Funds Available (This will likely require calculation from contributions, loans, investments)
+                // For now, it's a placeholder. You'll need to define how "funds available" is calculated.
+                document.getElementById('funds-available').textContent = `Ksh ${150000.00}`; 
+            }
+            
+            async function renderMembersManagement() {
+                contentContainer.innerHTML = `
+                    <h2>Members Management</h2>
+                    <div style="display: flex; gap: 10px; margin-bottom: 1rem; flex-wrap: wrap;">
+                        <input type="text" id="member-search" placeholder="Search by name or email..." style="flex-grow: 1; padding: 8px; border-radius: 5px; border: 1px solid #ccc;">
+                        <button class="btn btn-primary" id="add-member-btn">Add New Member</button>
+                        <button class="btn btn-primary" id="bulk-approve-btn">Bulk Approve</button>
+                        <button class="btn btn-primary" id="bulk-deactivate-btn">Bulk Deactivate</button>
+                    </div>
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th><input type="checkbox" id="select-all-members"></th>
+                                <th>Name <span data-sort="name" class="sort-icon">⬆⬇</span></th>
+                                <th>Email <span data-sort="email" class="sort-icon">⬆⬇</span></th>
+                                <th>Status <span data-sort="status" class="sort-icon">⬆⬇</span></th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="members-list">
+                            <!-- Members will be loaded here -->
+                        </tbody>
+                    </table>
+                    <div id="member-form-modal" class="modal">
+                        <div class="modal-content">
+                            <h3>Add/Edit Member</h3>
+                            <form id="member-form">
+                                <input type="hidden" id="member-id">
+                                <div class="form-group">
+                                    <label for="member-name">Name</label>
+                                    <input type="text" id="member-name" required>
+                                </div>
+                                <div class="form-group">
+                                    <label for="member-email">Email</label>
+                                    <input type="email" id="member-email" required>
+                                </div>
+                                <div class="form-group">
+                                    <label for="member-status">Status</label>
+                                    <select id="member-status">
+                                        <option value="pending">Pending</option>
+                                        <option value="active">Active</option>
+                                        <option value="deactivated">Deactivated</option>
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label for="member-profile-pic">Profile Picture</label>
+                                    <input type="file" id="member-profile-pic" accept="image/*">
+                                    <img id="current-profile-pic" src="" alt="Profile Pic" style="width: 100px; height: 100px; object-fit: cover; border-radius: 50%; margin-top: 10px; display: none;">
+                                </div>
+                                <button type="submit" class="btn btn-primary">Save Member</button>
+                                <button type="button" class="btn" id="cancel-member-form">Cancel</button>
+                            </form>
+                        </div>
+                    </div>`;
+                
+                const membersList = document.getElementById('members-list');
+                const memberSearchInput = document.getElementById('member-search');
+                const addMemberBtn = document.getElementById('add-member-btn');
+                const memberFormModal = document.getElementById('member-form-modal');
+                const memberForm = document.getElementById('member-form');
+                const cancelMemberFormBtn = document.getElementById('cancel-member-form');
+                const selectAllMembersCheckbox = document.getElementById('select-all-members');
+                const bulkApproveBtn = document.getElementById('bulk-approve-btn');
+                const bulkDeactivateBtn = document.getElementById('bulk-deactivate-btn');
+                let allMembersData = []; // Store fetched data for filtering/sorting
+
+                // Render members table
+                const renderMembersTable = (membersToDisplay) => {
+                    membersList.innerHTML = '';
+                    membersToDisplay.forEach(member => {
+                        const tr = document.createElement('tr');
+                        tr.innerHTML = `
+                            <td><input type="checkbox" class="member-checkbox" data-id="${member.id}"></td>
+                            <td>${member.name}</td>
+                            <td>${member.email}</td>
+                            <td>${member.status}</td>
+                            <td>
+                                <button class="btn btn-primary edit-member-btn" data-id="${member.id}">Edit</button>
+                                <button class="btn" data-action="approve" data-id="${member.id}" style="background-color: #28a745; color: white;">Approve</button>
+                                <button class="btn" data-action="deactivate" data-id="${member.id}" style="background-color: #dc3545; color: white;">Deactivate</button>
+                                <button class="btn delete-member-btn" data-id="${member.id}" style="background-color: #ffc107; color: black;">Delete</button>
+                            </td>`;
+                        membersList.appendChild(tr);
+                    });
+                };
+
+                // Real-time listener for members
+                firestore.collection('members').onSnapshot(snapshot => {
+                    allMembersData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                    renderMembersTable(allMembersData);
+                });
+
+                // Search functionality
+                memberSearchInput.addEventListener('keyup', () => {
+                    const searchTerm = memberSearchInput.value.toLowerCase();
+                    const filteredMembers = allMembersData.filter(member => 
+                        member.name.toLowerCase().includes(searchTerm) || 
+                        member.email.toLowerCase().includes(searchTerm)
+                    );
+                    renderMembersTable(filteredMembers);
+                });
+
+                // Sorting functionality
+                contentContainer.querySelectorAll('.sort-icon').forEach(icon => {
+                    icon.addEventListener('click', (e) => {
+                        const sortBy = e.target.dataset.sort;
+                        const sortedMembers = [...allMembersData].sort((a, b) => {
+                            if (a[sortBy] < b[sortBy]) return -1;
+                            if (a[sortBy] > b[sortBy]) return 0;
+                            return 0;
+                        });
+                        allMembersData = sortedMembers; // Update master data
+                        renderMembersTable(allMembersData);
+                    });
+                });
+
+                // Add/Edit Member Form
+                addMemberBtn.addEventListener('click', () => {
+                    memberForm.reset();
+                    document.getElementById('member-id').value = '';
+                    document.getElementById('current-profile-pic').style.display = 'none';
+                    memberFormModal.style.display = 'flex';
+                });
+
+                cancelMemberFormBtn.addEventListener('click', () => {
+                    memberFormModal.style.display = 'none';
+                });
+
+                membersList.addEventListener('click', (e) => {
+                    // Edit Member
+                    if (e.target.classList.contains('edit-member-btn')) {
+                        const memberId = e.target.dataset.id;
+                        firestore.collection('members').doc(memberId).get().then(doc => {
+                            const member = doc.data();
+                            document.getElementById('member-id').value = doc.id;
+                            document.getElementById('member-name').value = member.name;
+                            document.getElementById('member-email').value = member.email;
+                            document.getElementById('member-status').value = member.status;
+                            const profilePicElement = document.getElementById('current-profile-pic');
+                            if (member.profilePicUrl) {
+                                profilePicElement.src = member.profilePicUrl;
+                                profilePicElement.style.display = 'block';
+                            } else {
+                                profilePicElement.style.display = 'none';
+                            }
+                            memberFormModal.style.display = 'flex';
+                        });
+                    }
+                    // Approve/Deactivate Member
+                    if (e.target.dataset.action === 'approve' || e.target.dataset.action === 'deactivate') {
+                        const memberId = e.target.dataset.id;
+                        const newStatus = e.target.dataset.action === 'approve' ? 'active' : 'deactivated';
+                        showConfirmationModal(`Are you sure you want to ${newStatus} this member?`, async () => {
+                            await firestore.collection('members').doc(memberId).update({ status: newStatus });
+                            // Re-render handled by onSnapshot
+                        });
+                    }
+                    // Delete Member
+                    if (e.target.classList.contains('delete-member-btn')) {
+                        const memberId = e.target.dataset.id;
+                        showConfirmationModal('Are you sure you want to delete this member permanently?', async () => {
+                            await firestore.collection('members').doc(memberId).delete();
+                            // Re-render handled by onSnapshot
+                        });
+                    }
+                });
+
+                memberForm.addEventListener('submit', async (e) => {
+                    e.preventDefault();
+                    const memberId = document.getElementById('member-id').value;
+                    const name = document.getElementById('member-name').value;
+                    const email = document.getElementById('member-email').value;
+                    const status = document.getElementById('member-status').value;
+                    const profilePicFile = document.getElementById('member-profile-pic').files[0];
+                    
+                    let profilePicUrl = document.getElementById('current-profile-pic').src; // Keep existing if no new file
+
+                    if (profilePicFile) {
+                        const storageRef = storage.ref(`profile_pictures/${memberId || Date.now()}-${profilePicFile.name}`);
+                        await storageRef.put(profilePicFile);
+                        profilePicUrl = await storageRef.getDownloadURL();
+                    }
+
+                    const memberData = { name, email, status, profilePicUrl };
+
+                    if (memberId) {
+                        await firestore.collection('members').doc(memberId).update(memberData);
+                    } else {
+                        await firestore.collection('members').add(memberData);
+                    }
+                    memberFormModal.style.display = 'none';
+                });
+
+                // Bulk Actions
+                selectAllMembersCheckbox.addEventListener('change', (e) => {
+                    document.querySelectorAll('.member-checkbox').forEach(checkbox => {
+                        checkbox.checked = e.target.checked;
+                    });
+                });
+
+                const getSelectedMemberIds = () => {
+                    const selectedIds = [];
+                    document.querySelectorAll('.member-checkbox:checked').forEach(checkbox => {
+                        if (checkbox.id !== 'select-all-members') { // Exclude the select-all checkbox
+                            selectedIds.push(checkbox.dataset.id);
+                        }
+                    });
+                    return selectedIds;
+                };
+
+                bulkApproveBtn.addEventListener('click', () => {
+                    const selectedIds = getSelectedMemberIds();
+                    if (selectedIds.length === 0) {
+                        alert('No members selected for bulk approval.'); // Use alert for simplicity, replace with custom modal if desired
+                        return;
+                    }
+                    showConfirmationModal(`Approve ${selectedIds.length} members?`, async () => {
+                        for (const id of selectedIds) {
+                            await firestore.collection('members').doc(id).update({ status: 'active' });
+                        }
+                        // Re-render handled by onSnapshot
+                    });
+                });
+
+                bulkDeactivateBtn.addEventListener('click', () => {
+                    const selectedIds = getSelectedMemberIds();
+                    if (selectedIds.length === 0) {
+                        alert('No members selected for bulk deactivation.'); // Use alert for simplicity, replace with custom modal if desired
+                        return;
+                    }
+                    showConfirmationModal(`Deactivate ${selectedIds.length} members?`, async () => {
+                        for (const id of selectedIds) {
+                            await firestore.collection('members').doc(id).update({ status: 'deactivated' });
+                        }
+                        // Re-render handled by onSnapshot
+                    });
+                });
+            }
+
+            async function renderContributionsManagement() {
+                contentContainer.innerHTML = `
+                    <h2>Contributions Management</h2>
+                    <div style="display: flex; gap: 10px; margin-bottom: 1rem; flex-wrap: wrap;">
+                        <input type="text" id="contribution-search" placeholder="Search by member or date..." style="flex-grow: 1; padding: 8px; border-radius: 5px; border: 1px solid #ccc;">
+                        <input type="date" id="contribution-date-filter" style="padding: 8px; border-radius: 5px; border: 1px solid #ccc;">
+                        <button class="btn btn-primary" id="add-contribution-btn">Add New Contribution</button>
+                    </div>
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Member Name <span data-sort="memberName" class="sort-icon">⬆⬇</span></th>
+                                <th>Amount <span data-sort="amount" class="sort-icon">⬆⬇</span></th>
+                                <th>Date <span data-sort="date" class="sort-icon">⬆⬇</span></th>
+                                <th>Description</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="contributions-list">
+                            <!-- Contributions will be loaded here -->
+                        </tbody>
+                    </table>
+                    <div id="contribution-form-modal" class="modal">
+                        <div class="modal-content">
+                            <h3>Add/Edit Contribution</h3>
+                            <form id="contribution-form">
+                                <input type="hidden" id="contribution-id">
+                                <div class="form-group">
+                                    <label for="contribution-member-id">Member (Select Member)</label>
+                                    <select id="contribution-member-id" required></select>
+                                </div>
+                                <div class="form-group">
+                                    <label for="contribution-amount">Amount</label>
+                                    <input type="number" id="contribution-amount" step="0.01" required>
+                                </div>
+                                <div class="form-group">
+                                    <label for="contribution-date">Date</label>
+                                    <input type="date" id="contribution-date" required>
+                                </div>
+                                <div class="form-group">
+                                    <label for="contribution-description">Description</label>
+                                    <textarea id="contribution-description"></textarea>
+                                </div>
+                                <button type="submit" class="btn btn-primary">Save Contribution</button>
+                                <button type="button" class="btn" id="cancel-contribution-form">Cancel</button>
+                            </form>
+                        </div>
+                    </div>`;
+
+                const contributionsList = document.getElementById('contributions-list');
+                const contributionSearchInput = document.getElementById('contribution-search');
+                const contributionDateFilter = document.getElementById('contribution-date-filter');
+                const addContributionBtn = document.getElementById('add-contribution-btn');
+                const contributionFormModal = document.getElementById('contribution-form-modal');
+                const contributionForm = document.getElementById('contribution-form');
+                const cancelContributionFormBtn = document.getElementById('cancel-contribution-form');
+                const contributionMemberSelect = document.getElementById('contribution-member-id');
+                let allContributionsData = [];
+                let membersMap = {}; // To store member names by ID
+
+                // Populate member dropdown
+                firestore.collection('members').get().then(snapshot => {
+                    snapshot.forEach(doc => {
+                        membersMap[doc.id] = doc.data().name;
+                        const option = document.createElement('option');
+                        option.value = doc.id;
+                        option.textContent = doc.data().name;
+                        contributionMemberSelect.appendChild(option);
+                    });
+                });
+
+                const renderContributionsTable = (contributionsToDisplay) => {
+                    contributionsList.innerHTML = '';
+                    contributionsToDisplay.forEach(contribution => {
+                        const tr = document.createElement('tr');
+                        const memberName = membersMap[contribution.memberId] || 'Unknown Member';
+                        const date = contribution.date ? new Date(contribution.date.seconds * 1000).toLocaleDateString() : 'N/A';
+                        tr.innerHTML = `
+                            <td>${memberName}</td>
+                            <td>Ksh ${contribution.amount.toFixed(2)}</td>
+                            <td>${date}</td>
+                            <td>${contribution.description || ''}</td>
+                            <td>
+                                <button class="btn btn-primary edit-contribution-btn" data-id="${contribution.id}">Edit</button>
+                                <button class="btn delete-contribution-btn" data-id="${contribution.id}" style="background-color: #ffc107; color: black;">Delete</button>
+                            </td>`;
+                        contributionsList.appendChild(tr);
+                    });
+                };
+
+                firestore.collection('contributions').onSnapshot(snapshot => {
+                    allContributionsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                    renderContributionsTable(allContributionsData);
+                });
+
+                // Search and Filter
+                const applyFilters = () => {
+                    let filtered = [...allContributionsData];
+                    const searchTerm = contributionSearchInput.value.toLowerCase();
+                    const filterDate = contributionDateFilter.value;
+
+                    if (searchTerm) {
+                        filtered = filtered.filter(c => 
+                            (membersMap[c.memberId] || 'Unknown Member').toLowerCase().includes(searchTerm) ||
+                            (c.description || '').toLowerCase().includes(searchTerm)
+                        );
+                    }
+                    if (filterDate) {
+                        filtered = filtered.filter(c => {
+                            const cDate = c.date ? new Date(c.date.seconds * 1000).toISOString().split('T')[0] : '';
+                            return cDate === filterDate;
+                        });
+                    }
+                    renderContributionsTable(filtered);
+                };
+
+                contributionSearchInput.addEventListener('keyup', applyFilters);
+                contributionDateFilter.addEventListener('change', applyFilters);
+
+
+                // Add/Edit Contribution
+                addContributionBtn.addEventListener('click', () => {
+                    contributionForm.reset();
+                    document.getElementById('contribution-id').value = '';
+                    contributionFormModal.style.display = 'flex';
+                });
+
+                cancelContributionFormBtn.addEventListener('click', () => {
+                    contributionFormModal.style.display = 'none';
+                });
+
+                contributionsList.addEventListener('click', async (e) => {
+                    if (e.target.classList.contains('edit-contribution-btn')) {
+                        const contributionId = e.target.dataset.id;
+                        const doc = await firestore.collection('contributions').doc(contributionId).get();
+                        const contribution = doc.data();
+                        document.getElementById('contribution-id').value = doc.id;
+                        document.getElementById('contribution-member-id').value = contribution.memberId;
+                        document.getElementById('contribution-amount').value = contribution.amount;
+                        document.getElementById('contribution-date').value = contribution.date ? new Date(contribution.date.seconds * 1000).toISOString().split('T')[0] : '';
+                        document.getElementById('contribution-description').value = contribution.description || '';
+                        contributionFormModal.style.display = 'flex';
+                    }
+                    if (e.target.classList.contains('delete-contribution-btn')) {
+                        const contributionId = e.target.dataset.id;
+                        showConfirmationModal('Are you sure you want to delete this contribution?', async () => {
+                            await firestore.collection('contributions').doc(contributionId).delete();
+                        });
+                    }
+                });
+
+                contributionForm.addEventListener('submit', async (e) => {
+                    e.preventDefault();
+                    const contributionId = document.getElementById('contribution-id').value;
+                    const memberId = document.getElementById('contribution-member-id').value;
+                    const amount = parseFloat(document.getElementById('contribution-amount').value);
+                    const date = new Date(document.getElementById('contribution-date').value);
+                    const description = document.getElementById('contribution-description').value;
+
+                    const contributionData = {
+                        memberId: memberId,
+                        amount: amount,
+                        date: firebase.firestore.Timestamp.fromDate(date),
+                        description: description
+                    };
+
+                    if (contributionId) {
+                        await firestore.collection('contributions').doc(contributionId).update(contributionData);
+                    } else {
+                        await firestore.collection('contributions').add(contributionData);
+                    }
+                    contributionFormModal.style.display = 'none';
+                });
+
+                // Sorting functionality
+                contentContainer.querySelectorAll('.sort-icon').forEach(icon => {
+                    icon.addEventListener('click', (e) => {
+                        const sortBy = e.target.dataset.sort;
+                        const sortedContributions = [...allContributionsData].sort((a, b) => {
+                            let valA = a[sortBy];
+                            let valB = b[sortBy];
+
+                            if (sortBy === 'date') { // Handle Firebase Timestamp for date sorting
+                                valA = a.date ? a.date.toMillis() : 0;
+                                valB = b.date ? b.date.toMillis() : 0;
+                            } else if (sortBy === 'memberName') { // Sort by member name, not ID
+                                valA = membersMap[a.memberId] || 'Unknown'; 
+                                valB = membersMap[b.memberId] || 'Unknown'; 
+                            }
+                            
+                            if (typeof valA === 'string') return valA.localeCompare(valB);
+                            return valA - valB;
+                        });
+                        allContributionsData = sortedContributions;
+                        renderContributionsTable(allContributionsData);
+                    });
+                });
+            }
+            
+            async function renderLoanManagement() {
+                contentContainer.innerHTML = `
+                    <h2>Loan Management</h2>
+                    <div style="display: flex; gap: 10px; margin-bottom: 1rem; flex-wrap: wrap;">
+                        <input type="text" id="loan-search" placeholder="Search by member or status..." style="flex-grow: 1; padding: 8px; border-radius: 5px; border: 1px solid #ccc;">
+                        <select id="loan-status-filter" style="padding: 8px; border-radius: 5px; border: 1px solid #ccc;">
+                            <option value="">All Statuses</option>
+                            <option value="pending">Pending</option>
+                            <option value="approved">Approved</option>
+                            <option value="repaid">Repaid</option>
+                            <option value="overdue">Overdue</option>
+                        </select>
+                        <button class="btn btn-primary" id="add-loan-btn">Add New Loan</button>
+                    </div>
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Member Name <span data-sort="memberName" class="sort-icon">⬆⬇</span></th>
+                                <th>Amount <span data-sort="amount" class="sort-icon">⬆⬇</span></th>
+                                <th>Interest <span data-sort="interestRate" class="sort-icon">⬆⬇</span></th>
+                                <th>Due Date <span data-sort="dueDate" class="sort-icon">⬆⬇</span></th>
+                                <th>Status <span data-sort="status" class="sort-icon">⬆⬇</span></th>
+                                <th>Repaid Amount <span data-sort="repaidAmount" class="sort-icon">⬆⬇</span></th>
+                                <th>Balance <span data-sort="balance" class="sort-icon">⬆⬇</span></th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="loans-list">
+                            <!-- Loans will be loaded here -->
+                        </tbody>
+                    </table>
+                    <div id="loan-form-modal" class="modal">
+                        <div class="modal-content">
+                            <h3>Add/Edit Loan</h3>
+                            <form id="loan-form">
+                                <input type="hidden" id="loan-id">
+                                <div class="form-group">
+                                    <label for="loan-member-id">Member (Select Member)</label>
+                                    <select id="loan-member-id" required></select>
+                                </div>
+                                <div class="form-group">
+                                    <label for="loan-amount">Amount</label>
+                                    <input type="number" id="loan-amount" step="0.01" required>
+                                </div>
+                                <div class="form-group">
+                                    <label for="loan-interest-rate">Interest Rate (%)</label>
+                                    <input type="number" id="loan-interest-rate" step="0.01" required>
+                                </div>
+                                <div class="form-group">
+                                    <label for="loan-due-date">Due Date</label>
+                                    <input type="date" id="loan-due-date" required>
+                                </div>
+                                <div class="form-group">
+                                    <label for="loan-status">Status</label>
+                                    <select id="loan-status">
+                                        <option value="pending">Pending</option>
+                                        <option value="approved">Approved</option>
+                                        <option value="repaid">Repaid</option>
+                                        <option value="overdue">Overdue</option>
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label for="loan-repaid-amount">Repaid Amount</label>
+                                    <input type="number" id="loan-repaid-amount" step="0.01">
+                                </div>
+                                <button type="submit" class="btn btn-primary">Save Loan</button>
+                                <button type="button" class="btn" id="cancel-loan-form">Cancel</button>
+                            </form>
+                        </div>
+                    </div>`;
+                
+                const loansList = document.getElementById('loans-list');
+                const loanSearchInput = document.getElementById('loan-search');
+                const loanStatusFilter = document.getElementById('loan-status-filter');
+                const addLoanBtn = document.getElementById('add-loan-btn');
+                const loanFormModal = document.getElementById('loan-form-modal');
+                const loanForm = document.getElementById('loan-form');
+                const cancelLoanFormBtn = document.getElementById('cancel-loan-form');
+                const loanMemberSelect = document.getElementById('loan-member-id');
+                let allLoansData = [];
+                let membersMap = {};
+
+                // Populate member dropdown
+                firestore.collection('members').get().then(snapshot => {
+                    snapshot.forEach(doc => {
+                        membersMap[doc.id] = doc.data().name;
+                        const option = document.createElement('option');
+                        option.value = doc.id;
+                        option.textContent = doc.data().name;
+                        loanMemberSelect.appendChild(option);
+                    });
+                });
+
+                const renderLoansTable = (loansToDisplay) => {
+                    loansList.innerHTML = '';
+                    loansToDisplay.forEach(loan => {
+                        const tr = document.createElement('tr');
+                        const memberName = membersMap[loan.memberId] || 'Unknown Member';
+                        const dueDate = loan.dueDate ? new Date(loan.dueDate.seconds * 1000).toLocaleDateString() : 'N/A';
+                        const balance = (loan.amount * (1 + loan.interestRate / 100)) - (loan.repaidAmount || 0);
+
+                        tr.innerHTML = `
+                            <td>${memberName}</td>
+                            <td>Ksh ${loan.amount.toFixed(2)}</td>
+                            <td>${loan.interestRate}%</td>
+                            <td>${dueDate}</td>
+                            <td>${loan.status}</td>
+                            <td>Ksh ${(loan.repaidAmount || 0).toFixed(2)}</td>
+                            <td>Ksh ${balance.toFixed(2)}</td>
+                            <td>
+                                <button class="btn btn-primary edit-loan-btn" data-id="${loan.id}">Edit</button>
+                                <button class="btn" data-action="mark-repaid" data-id="${loan.id}" style="background-color: #28a745; color: white;">Mark Repaid</button>
+                                <button class="btn delete-loan-btn" data-id="${loan.id}" style="background-color: #ffc107; color: black;">Delete</button>
+                            </td>`;
+                        loansList.appendChild(tr);
+                    });
+                };
+
+                firestore.collection('loans').onSnapshot(snapshot => {
+                    allLoansData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                    renderLoansTable(allLoansData);
+                });
+
+                // Search and Filter
+                const applyFilters = () => {
+                    let filtered = [...allLoansData];
+                    const searchTerm = loanSearchInput.value.toLowerCase();
+                    const filterStatus = loanStatusFilter.value;
+
+                    if (searchTerm) {
+                        filtered = filtered.filter(l => 
+                            (membersMap[l.memberId] || 'Unknown Member').toLowerCase().includes(searchTerm) ||
+                            (l.status || '').toLowerCase().includes(searchTerm)
+                        );
+                    }
+                    if (filterStatus) {
+                        filtered = filtered.filter(l => l.status === filterStatus);
+                    }
+                    renderLoansTable(filtered);
+                };
+
+                loanSearchInput.addEventListener('keyup', applyFilters);
+                loanStatusFilter.addEventListener('change', applyFilters);
+
+                // Add/Edit Loan
+                addLoanBtn.addEventListener('click', () => {
+                    loanForm.reset();
+                    document.getElementById('loan-id').value = '';
+                    loanFormModal.style.display = 'flex';
+                });
+
+                cancelLoanFormBtn.addEventListener('click', () => {
+                    loanFormModal.style.display = 'none';
+                });
+
+                loansList.addEventListener('click', async (e) => {
+                    if (e.target.classList.contains('edit-loan-btn')) {
+                        const loanId = e.target.dataset.id;
+                        const doc = await firestore.collection('loans').doc(loanId).get();
+                        const loan = doc.data();
+                        document.getElementById('loan-id').value = doc.id;
+                        document.getElementById('loan-member-id').value = loan.memberId;
+                        document.getElementById('loan-amount').value = loan.amount;
+                        document.getElementById('loan-interest-rate').value = loan.interestRate;
+                        document.getElementById('loan-due-date').value = loan.dueDate ? new Date(loan.dueDate.seconds * 1000).toISOString().split('T')[0] : '';
+                        document.getElementById('loan-status').value = loan.status;
+                        document.getElementById('loan-repaid-amount').value = loan.repaidAmount || 0;
+                        loanFormModal.style.display = 'flex';
+                    }
+                    if (e.target.dataset.action === 'mark-repaid') {
+                        const loanId = e.target.dataset.id;
+                        showConfirmationModal('Mark this loan as fully repaid?', async () => {
+                            const doc = await firestore.collection('loans').doc(loanId).get();
+                            const loan = doc.data();
+                            await firestore.collection('loans').doc(loanId).update({ status: 'repaid', repaidAmount: loan.amount * (1 + loan.interestRate / 100) });
+                        });
+                    }
+                    if (e.target.classList.contains('delete-loan-btn')) {
+                        const loanId = e.target.dataset.id;
+                        showConfirmationModal('Are you sure you want to delete this loan record?', async () => {
+                            await firestore.collection('loans').doc(loanId).delete();
+                        });
+                    }
+                });
+
+                loanForm.addEventListener('submit', async (e) => {
+                    e.preventDefault();
+                    const loanId = document.getElementById('loan-id').value;
+                    const memberId = document.getElementById('loan-member-id').value;
+                    const amount = parseFloat(document.getElementById('loan-amount').value);
+                    const interestRate = parseFloat(document.getElementById('loan-interest-rate').value);
+                    const dueDate = new Date(document.getElementById('loan-due-date').value);
+                    const status = document.getElementById('loan-status').value;
+                    const repaidAmount = parseFloat(document.getElementById('loan-repaid-amount').value) || 0;
+
+                    const loanData = {
+                        memberId: memberId,
+                        amount: amount,
+                        interestRate: interestRate,
+                        dueDate: firebase.firestore.Timestamp.fromDate(dueDate),
+                        status: status,
+                        repaidAmount: repaidAmount
+                    };
+
+                    if (loanId) {
+                        await firestore.collection('loans').doc(loanId).update(loanData);
+                    } else {
+                        await firestore.collection('loans').add(loanData);
+                    }
+                    loanFormModal.style.display = 'none';
+                });
+                // Sorting functionality (similar to members/contributions)
+                contentContainer.querySelectorAll('.sort-icon').forEach(icon => {
+                    icon.addEventListener('click', (e) => {
+                        const sortBy = e.target.dataset.sort;
+                        const sortedLoans = [...allLoansData].sort((a, b) => {
+                            let valA = a[sortBy];
+                            let valB = b[sortBy];
+
+                            if (sortBy === 'dueDate') { // Handle Firebase Timestamp for date sorting
+                                valA = a.dueDate ? a.dueDate.toMillis() : 0;
+                                valB = b.dueDate ? b.dueDate.toMillis() : 0;
+                            } else if (sortBy === 'memberName') { // Sort by member name, not ID
+                                valA = membersMap[a.memberId] || 'Unknown'; 
+                                valB = membersMap[b.memberId] || 'Unknown'; 
+                            }
+                            
+                            if (typeof valA === 'string') return valA.localeCompare(valB);
+                            return valA - valB;
+                        });
+                        allLoansData = sortedLoans;
+                        renderLoansTable(allLoansData);
+                    });
+                });
+            }
+
+            async function renderMeetingsNotices() {
+                contentContainer.innerHTML = `
+                    <h2>Meetings & Notices</h2>
+                    <div style="display: flex; gap: 10px; margin-bottom: 1rem; flex-wrap: wrap;">
+                        <input type="text" id="meeting-search" placeholder="Search by title or date..." style="flex-grow: 1; padding: 8px; border-radius: 5px; border: 1px solid #ccc;">
+                        <button class="btn btn-primary" id="add-meeting-btn">Add New Meeting/Notice</button>
+                    </div>
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Title <span data-sort="title" class="sort-icon">⬆⬇</span></th>
+                                <th>Date <span data-sort="date" class="sort-icon">⬆⬇</span></th>
+                                <th>Time</th>
+                                <th>Location</th>
+                                <th>Type</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="meetings-list">
+                            <!-- Meetings/Notices will be loaded here -->
+                        </tbody>
+                    </table>
+                    <div id="meeting-form-modal" class="modal">
+                        <div class="modal-content">
+                            <h3>Add/Edit Meeting/Notice</h3>
+                            <form id="meeting-form">
+                                <input type="hidden" id="meeting-id">
+                                <div class="form-group">
+                                    <label for="meeting-title">Title</label>
+                                    <input type="text" id="meeting-title" required>
+                                </div>
+                                <div class="form-group">
+                                    <label for="meeting-date">Date</label>
+                                    <input type="date" id="meeting-date" required>
+                                </div>
+                                <div class="form-group">
+                                    <label for="meeting-time">Time</label>
+                                    <input type="time" id="meeting-time">
+                                </div>
+                                <div class="form-group">
+                                    <label for="meeting-location">Location</label>
+                                    <input type="text" id="meeting-location">
+                                </div>
+                                <div class="form-group">
+                                    <label for="meeting-description">Description</label>
+                                    <textarea id="meeting-description"></textarea>
+                                </div>
+                                <div class="form-group">
+                                    <label for="meeting-type">Type</label>
+                                    <select id="meeting-type">
+                                        <option value="meeting">Meeting</option>
+                                        <option value="notice">Notice</option>
+                                    </select>
+                                </div>
+                                <button type="submit" class="btn btn-primary">Save Meeting/Notice</button>
+                                <button type="button" class="btn" id="cancel-meeting-form">Cancel</button>
+                            </form>
+                        </div>
+                    </div>`;
+                
+                const meetingsList = document.getElementById('meetings-list');
+                const meetingSearchInput = document.getElementById('meeting-search');
+                const addMeetingBtn = document.getElementById('add-meeting-btn');
+                const meetingFormModal = document.getElementById('meeting-form-modal');
+                const meetingForm = document.getElementById('meeting-form');
+                const cancelMeetingFormBtn = document.getElementById('cancel-meeting-form');
+                let allMeetingsData = [];
+
+                const renderMeetingsTable = (meetingsToDisplay) => {
+                    meetingsList.innerHTML = '';
+                    meetingsToDisplay.forEach(meeting => {
+                        const tr = document.createElement('tr');
+                        const date = meeting.date ? new Date(meeting.date.seconds * 1000).toLocaleDateString() : 'N/A';
+                        tr.innerHTML = `
+                            <td>${meeting.title}</td>
+                            <td>${date}</td>
+                            <td>${meeting.time || 'N/A'}</td>
+                            <td>${meeting.location || 'N/A'}</td>
+                            <td>${meeting.type || 'N/A'}</td>
+                            <td>
+                                <button class="btn btn-primary edit-meeting-btn" data-id="${meeting.id}">Edit</button>
+                                <button class="btn delete-meeting-btn" data-id="${meeting.id}" style="background-color: #ffc107; color: black;">Delete</button>
+                            </td>`;
+                        meetingsList.appendChild(tr);
+                    });
+                };
+
+                firestore.collection('meetings').onSnapshot(snapshot => {
+                    allMeetingsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                    renderMeetingsTable(allMeetingsData);
+                });
+
+                // Search functionality
+                meetingSearchInput.addEventListener('keyup', () => {
+                    const searchTerm = meetingSearchInput.value.toLowerCase();
+                    const filteredMeetings = allMeetingsData.filter(m => 
+                        m.title.toLowerCase().includes(searchTerm) || 
+                        (m.description || '').toLowerCase().includes(searchTerm) ||
+                        (m.date ? new Date(m.date.seconds * 1000).toLocaleDateString().includes(searchTerm) : false)
+                    );
+                    renderMeetingsTable(filteredMeetings);
+                });
+
+                // Add/Edit Meeting
+                addMeetingBtn.addEventListener('click', () => {
+                    meetingForm.reset();
+                    document.getElementById('meeting-id').value = '';
+                    meetingFormModal.style.display = 'flex';
+                });
+
+                cancelMeetingFormBtn.addEventListener('click', () => {
+                    meetingFormModal.style.display = 'none';
+                });
+
+                meetingsList.addEventListener('click', async (e) => {
+                    if (e.target.classList.contains('edit-meeting-btn')) {
+                        const meetingId = e.target.dataset.id;
+                        const doc = await firestore.collection('meetings').doc(meetingId).get();
+                        const meeting = doc.data();
+                        document.getElementById('meeting-id').value = doc.id;
+                        document.getElementById('meeting-title').value = meeting.title;
+                        document.getElementById('meeting-date').value = meeting.date ? new Date(meeting.date.seconds * 1000).toISOString().split('T')[0] : '';
+                        document.getElementById('meeting-time').value = meeting.time || '';
+                        document.getElementById('meeting-location').value = meeting.location || '';
+                        document.getElementById('meeting-description').value = meeting.description || '';
+                        document.getElementById('meeting-type').value = meeting.type || 'meeting';
+                        meetingFormModal.style.display = 'flex';
+                    }
+                    if (e.target.classList.contains('delete-meeting-btn')) {
+                        const meetingId = e.target.dataset.id;
+                        showConfirmationModal('Are you sure you want to delete this meeting/notice?', async () => {
+                            await firestore.collection('meetings').doc(meetingId).delete();
+                        });
+                    }
+                });
+
+                meetingForm.addEventListener('submit', async (e) => {
+                    e.preventDefault();
+                    const meetingId = document.getElementById('meeting-id').value;
+                    const title = document.getElementById('meeting-title').value;
+                    const date = new Date(document.getElementById('meeting-date').value);
+                    const time = document.getElementById('meeting-time').value;
+                    const location = document.getElementById('meeting-location').value;
+                    const description = document.getElementById('meeting-description').value;
+                    const type = document.getElementById('meeting-type').value;
+
+                    const meetingData = {
+                        title: title,
+                        date: firebase.firestore.Timestamp.fromDate(date),
+                        time: time,
+                        location: location,
+                        description: description,
+                        type: type
+                    };
+
+                    if (meetingId) {
+                        await firestore.collection('meetings').doc(meetingId).update(meetingData);
+                    } else {
+                        await firestore.collection('meetings').add(meetingData);
+                    }
+                    meetingFormModal.style.display = 'none';
+                });
+
+                // Sorting functionality
+                contentContainer.querySelectorAll('.sort-icon').forEach(icon => {
+                    icon.addEventListener('click', (e) => {
+                        const sortBy = e.target.dataset.sort;
+                        const sortedMeetings = [...allMeetingsData].sort((a, b) => {
+                            let valA = a[sortBy];
+                            let valB = b[sortBy];
+
+                            if (sortBy === 'date') { // Handle Firebase Timestamp for date sorting
+                                valA = a.date ? a.date.toMillis() : 0;
+                                valB = b.date ? b.date.toMillis() : 0;
+                            }
+                            
+                            if (typeof valA === 'string') return valA.localeCompare(valB);
+                            return valA - valB;
+                        });
+                        allMeetingsData = sortedMeetings;
+                        renderMeetingsTable(allMeetingsData);
+                    });
+                });
+            }
+
+            async function renderFinesPenalties() {
+                contentContainer.innerHTML = `
+                    <h2>Fines & Penalties</h2>
+                    <div style="display: flex; gap: 10px; margin-bottom: 1rem; flex-wrap: wrap;">
+                        <input type="text" id="fine-search" placeholder="Search by member or reason..." style="flex-grow: 1; padding: 8px; border-radius: 5px; border: 1px solid #ccc;">
+                        <select id="fine-status-filter" style="padding: 8px; border-radius: 5px; border: 1px solid #ccc;">
+                            <option value="">All Statuses</option>
+                            <option value="unpaid">Unpaid</option>
+                            <option value="paid">Paid</option>
+                        </select>
+                        <button class="btn btn-primary" id="add-fine-btn">Add New Fine</button>
+                        <button class="btn btn-primary" id="bulk-mark-paid-btn">Bulk Mark Paid</button>
+                    </div>
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th><input type="checkbox" id="select-all-fines"></th>
+                                <th>Member Name <span data-sort="memberName" class="sort-icon">⬆⬇</span></th>
+                                <th>Reason</th>
+                                <th>Amount <span data-sort="amount" class="sort-icon">⬆⬇</span></th>
+                                <th>Date Issued <span data-sort="dateIssued" class="sort-icon">⬆⬇</span></th>
+                                <th>Status <span data-sort="status" class="sort-icon">⬆⬇</span></th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="fines-list">
+                            <!-- Fines will be loaded here -->
+                        </tbody>
+                    </table>
+                    <div id="fine-form-modal" class="modal">
+                        <div class="modal-content">
+                            <h3>Add/Edit Fine</h3>
+                            <form id="fine-form">
+                                <input type="hidden" id="fine-id">
+                                <div class="form-group">
+                                    <label for="fine-member-id">Member (Select Member)</label>
+                                    <select id="fine-member-id" required></select>
+                                </div>
+                                <div class="form-group">
+                                    <label for="fine-reason">Reason</label>
+                                    <input type="text" id="fine-reason" required>
+                                </div>
+                                <div class="form-group">
+                                    <label for="fine-amount">Amount</label>
+                                    <input type="number" id="fine-amount" step="0.01" required>
+                                </div>
+                                <div class="form-group">
+                                    <label for="fine-date-issued">Date Issued</label>
+                                    <input type="date" id="fine-date-issued" required>
+                                </div>
+                                <div class="form-group">
+                                    <label for="fine-status">Status</label>
+                                    <select id="fine-status">
+                                        <option value="unpaid">Unpaid</option>
+                                        <option value="paid">Paid</option>
+                                    </select>
+                                </div>
+                                <button type="submit" class="btn btn-primary">Save Fine</button>
+                                <button type="button" class="btn" id="cancel-fine-form">Cancel</button>
+                            </form>
+                        </div>
+                    </div>`;
+                
+                const finesList = document.getElementById('fines-list');
+                const fineSearchInput = document.getElementById('fine-search');
+                const fineStatusFilter = document.getElementById('fine-status-filter');
+                const addFineBtn = document.getElementById('add-fine-btn');
+                const fineFormModal = document.getElementById('fine-form-modal');
+                const fineForm = document.getElementById('fine-form');
+                const cancelFineFormBtn = document.getElementById('cancel-fine-form');
+                const fineMemberSelect = document.getElementById('fine-member-id');
+                const selectAllFinesCheckbox = document.getElementById('select-all-fines');
+                const bulkMarkPaidBtn = document.getElementById('bulk-mark-paid-btn');
+                let allFinesData = [];
+                let membersMap = {};
+
+                // Populate member dropdown
+                firestore.collection('members').get().then(snapshot => {
+                    snapshot.forEach(doc => {
+                        membersMap[doc.id] = doc.data().name;
+                        const option = document.createElement('option');
+                        option.value = doc.id;
+                        option.textContent = doc.data().name;
+                        fineMemberSelect.appendChild(option);
+                    });
+                });
+
+                const renderFinesTable = (finesToDisplay) => {
+                    finesList.innerHTML = '';
+                    finesToDisplay.forEach(fine => {
+                        const tr = document.createElement('tr');
+                        const memberName = membersMap[fine.memberId] || 'Unknown Member';
+                        const dateIssued = fine.dateIssued ? new Date(fine.dateIssued.seconds * 1000).toLocaleDateString() : 'N/A';
+                        tr.innerHTML = `
+                            <td><input type="checkbox" class="fine-checkbox" data-id="${fine.id}"></td>
+                            <td>${memberName}</td>
+                            <td>${fine.reason}</td>
+                            <td>Ksh ${fine.amount.toFixed(2)}</td>
+                            <td>${dateIssued}</td>
+                            <td>${fine.status}</td>
+                            <td>
+                                <button class="btn btn-primary edit-fine-btn" data-id="${fine.id}">Edit</button>
+                                ${fine.status === 'unpaid' ? `<button class="btn" data-action="mark-paid" data-id="${fine.id}" style="background-color: #28a745; color: white;">Mark Paid</button>` : ''}
+                                <button class="btn delete-fine-btn" data-id="${fine.id}" style="background-color: #ffc107; color: black;">Delete</button>
+                            </td>`;
+                        finesList.appendChild(tr);
+                    });
+                };
+
+                firestore.collection('fines').onSnapshot(snapshot => {
+                    allFinesData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                    renderFinesTable(allFinesData);
+                });
+
+                // Search and Filter
+                const applyFilters = () => {
+                    let filtered = [...allFinesData];
+                    const searchTerm = fineSearchInput.value.toLowerCase();
+                    const filterStatus = fineStatusFilter.value;
+
+                    if (searchTerm) {
+                        filtered = filtered.filter(f => 
+                            (membersMap[f.memberId] || 'Unknown Member').toLowerCase().includes(searchTerm) ||
+                            (f.reason || '').toLowerCase().includes(searchTerm)
+                        );
+                    }
+                    if (filterStatus) {
+                        filtered = filtered.filter(f => f.status === filterStatus);
+                    }
+                    renderFinesTable(filtered);
+                };
+
+                fineSearchInput.addEventListener('keyup', applyFilters);
+                fineStatusFilter.addEventListener('change', applyFilters);
+
+                // Add/Edit Fine
+                addFineBtn.addEventListener('click', () => {
+                    fineForm.reset();
+                    document.getElementById('fine-id').value = '';
+                    fineFormModal.style.display = 'flex';
+                });
+
+                cancelFineFormBtn.addEventListener('click', () => {
+                    fineFormModal.style.display = 'none';
+                });
+
+                finesList.addEventListener('click', async (e) => {
+                    if (e.target.classList.contains('edit-fine-btn')) {
+                        const fineId = e.target.dataset.id;
+                        const doc = await firestore.collection('fines').doc(fineId).get();
+                        const fine = doc.data();
+                        document.getElementById('fine-id').value = doc.id;
+                        document.getElementById('fine-member-id').value = fine.memberId;
+                        document.getElementById('fine-reason').value = fine.reason;
+                        document.getElementById('fine-amount').value = fine.amount;
+                        document.getElementById('fine-date-issued').value = fine.dateIssued ? new Date(fine.dateIssued.seconds * 1000).toISOString().split('T')[0] : '';
+                        document.getElementById('fine-status').value = fine.status;
+                        fineFormModal.style.display = 'flex';
+                    }
+                    if (e.target.dataset.action === 'mark-paid') {
+                        const fineId = e.target.dataset.id;
+                        showConfirmationModal('Mark this fine as paid?', async () => {
+                            await firestore.collection('fines').doc(fineId).update({ status: 'paid' });
+                        });
+                    }
+                    if (e.target.classList.contains('delete-fine-btn')) {
+                        const fineId = e.target.dataset.id;
+                        showConfirmationModal('Are you sure you want to delete this fine record?', async () => {
+                            await firestore.collection('fines').doc(fineId).delete();
+                        });
+                    }
+                });
+
+                fineForm.addEventListener('submit', async (e) => {
+                    e.preventDefault();
+                    const fineId = document.getElementById('fine-id').value;
+                    const memberId = document.getElementById('fine-member-id').value;
+                    const reason = document.getElementById('fine-reason').value;
+                    const amount = parseFloat(document.getElementById('fine-amount').value);
+                    const dateIssued = new Date(document.getElementById('fine-date-issued').value);
+                    const status = document.getElementById('fine-status').value;
+
+                    const fineData = {
+                        memberId: memberId,
+                        reason: reason,
+                        amount: amount,
+                        dateIssued: firebase.firestore.Timestamp.fromDate(dateIssued),
+                        status: status
+                    };
+
+                    if (fineId) {
+                        await firestore.collection('fines').doc(fineId).update(fineData);
+                    } else {
+                        await firestore.collection('fines').add(fineData);
+                    }
+                    fineFormModal.style.display = 'none';
+                });
+
+                // Bulk Actions
+                selectAllFinesCheckbox.addEventListener('change', (e) => {
+                    document.querySelectorAll('.fine-checkbox').forEach(checkbox => {
+                        checkbox.checked = e.target.checked;
+                    });
+                });
+
+                const getSelectedFineIds = () => {
+                    const selectedIds = [];
+                    document.querySelectorAll('.fine-checkbox:checked').forEach(checkbox => {
+                        if (checkbox.id !== 'select-all-fines') { 
+                            selectedIds.push(checkbox.dataset.id);
+                        }
+                    });
+                    return selectedIds;
+                };
+
+                bulkMarkPaidBtn.addEventListener('click', () => {
+                    const selectedIds = getSelectedFineIds();
+                    if (selectedIds.length === 0) {
+                        alert('No fines selected for bulk marking as paid.');
+                        return;
+                    }
+                    showConfirmationModal(`Mark ${selectedIds.length} fines as paid?`, async () => {
+                        for (const id of selectedIds) {
+                            await firestore.collection('fines').doc(id).update({ status: 'paid' });
+                        }
+                    });
+                });
+
+                // Sorting functionality
+                contentContainer.querySelectorAll('.sort-icon').forEach(icon => {
+                    icon.addEventListener('click', (e) => {
+                        const sortBy = e.target.dataset.sort;
+                        const sortedFines = [...allFinesData].sort((a, b) => {
+                            let valA = a[sortBy];
+                            let valB = b[sortBy];
+
+                            if (sortBy === 'dateIssued') { 
+                                valA = a.dateIssued ? a.dateIssued.toMillis() : 0;
+                                valB = b.dateIssued ? b.dateIssued.toMillis() : 0;
+                            } else if (sortBy === 'memberName') { 
+                                valA = membersMap[a.memberId] || 'Unknown'; 
+                                valB = membersMap[b.memberId] || 'Unknown'; 
+                            }
+                            
+                            if (typeof valA === 'string') return valA.localeCompare(valB);
+                            return valA - valB;
+                        });
+                        allFinesData = sortedFines;
+                        renderFinesTable(allFinesData);
+                    });
+                });
+            }
+
+            async function renderInvestments() {
+                contentContainer.innerHTML = `
+                    <h2>Investments</h2>
+                    <div style="display: flex; gap: 10px; margin-bottom: 1rem; flex-wrap: wrap;">
+                        <input type="text" id="investment-search" placeholder="Search by name or status..." style="flex-grow: 1; padding: 8px; border-radius: 5px; border: 1px solid #ccc;">
+                        <select id="investment-status-filter" style="padding: 8px; border-radius: 5px; border: 1px solid #ccc;">
+                            <option value="">All Statuses</option>
+                            <option value="planning">Planning</option>
+                            <option value="active">Active</option>
+                            <option value="completed">Completed</option>
+                        </select>
+                        <button class="btn btn-primary" id="add-investment-btn">Add New Investment</button>
+                    </div>
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Project Name <span data-sort="projectName" class="sort-icon">⬆⬇</span></th>
+                                <th>Description</th>
+                                <th>Target Amount <span data-sort="targetAmount" class="sort-icon">⬆⬇</span></th>
+                                <th>Pledged Amount <span data-sort="pledgedAmount" class="sort-icon">⬆⬇</span></th>
+                                <th>Status <span data-sort="status" class="sort-icon">⬆⬇</span></th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="investments-list">
+                            <!-- Investments will be loaded here -->
+                        </tbody>
+                    </table>
+                    <div id="investment-form-modal" class="modal">
+                        <div class="modal-content">
+                            <h3>Add/Edit Investment</h3>
+                            <form id="investment-form">
+                                <input type="hidden" id="investment-id">
+                                <div class="form-group">
+                                    <label for="investment-project-name">Project Name</label>
+                                    <input type="text" id="investment-project-name" required>
+                                </div>
+                                <div class="form-group">
+                                    <label for="investment-description">Description</label>
+                                    <textarea id="investment-description"></textarea>
+                                </div>
+                                <div class="form-group">
+                                    <label for="investment-target-amount">Target Amount</label>
+                                    <input type="number" id="investment-target-amount" step="0.01" required>
+                                </div>
+                                <div class="form-group">
+                                    <label for="investment-pledged-amount">Pledged Amount</label>
+                                    <input type="number" id="investment-pledged-amount" step="0.01">
+                                </div>
+                                <div class="form-group">
+                                    <label for="investment-status">Status</label>
+                                    <select id="investment-status">
+                                        <option value="planning">Planning</option>
+                                        <option value="active">Active</option>
+                                        <option value="completed">Completed</option>
+                                    </select>
+                                </div>
+                                <button type="submit" class="btn btn-primary">Save Investment</button>
+                                <button type="button" class="btn" id="cancel-investment-form">Cancel</button>
+                            </form>
+                        </div>
+                    </div>`;
+                
+                const investmentsList = document.getElementById('investments-list');
+                const investmentSearchInput = document.getElementById('investment-search');
+                const investmentStatusFilter = document.getElementById('investment-status-filter');
+                const addInvestmentBtn = document.getElementById('add-investment-btn');
+                const investmentFormModal = document.getElementById('investment-form-modal');
+                const investmentForm = document.getElementById('investment-form');
+                const cancelInvestmentFormBtn = document.getElementById('cancel-investment-form');
+                let allInvestmentsData = [];
+
+                const renderInvestmentsTable = (investmentsToDisplay) => {
+                    investmentsList.innerHTML = '';
+                    investmentsToDisplay.forEach(investment => {
+                        const tr = document.createElement('tr');
+                        tr.innerHTML = `
+                            <td>${investment.projectName}</td>
+                            <td>${investment.description || 'N/A'}</td>
+                            <td>Ksh ${investment.targetAmount.toFixed(2)}</td>
+                            <td>Ksh ${(investment.pledgedAmount || 0).toFixed(2)}</td>
+                            <td>${investment.status}</td>
+                            <td>
+                                <button class="btn btn-primary edit-investment-btn" data-id="${investment.id}">Edit</button>
+                                ${investment.status !== 'completed' ? `<button class="btn" data-action="mark-completed" data-id="${investment.id}" style="background-color: #28a745; color: white;">Mark Completed</button>` : ''}
+                                <button class="btn delete-investment-btn" data-id="${investment.id}" style="background-color: #ffc107; color: black;">Delete</button>
+                            </td>`;
+                        investmentsList.appendChild(tr);
+                    });
+                };
+
+                firestore.collection('investments').onSnapshot(snapshot => {
+                    allInvestmentsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                    renderInvestmentsTable(allInvestmentsData);
+                });
+
+                // Search and Filter
+                const applyFilters = () => {
+                    let filtered = [...allInvestmentsData];
+                    const searchTerm = investmentSearchInput.value.toLowerCase();
+                    const filterStatus = investmentStatusFilter.value;
+
+                    if (searchTerm) {
+                        filtered = filtered.filter(i => 
+                            (i.projectName || '').toLowerCase().includes(searchTerm) ||
+                            (i.description || '').toLowerCase().includes(searchTerm)
+                        );
+                    }
+                    if (filterStatus) {
+                        filtered = filtered.filter(i => i.status === filterStatus);
+                    }
+                    renderInvestmentsTable(filtered);
+                };
+
+                investmentSearchInput.addEventListener('keyup', applyFilters);
+                investmentStatusFilter.addEventListener('change', applyFilters);
+
+                // Add/Edit Investment
+                addInvestmentBtn.addEventListener('click', () => {
+                    investmentForm.reset();
+                    document.getElementById('investment-id').value = '';
+                    investmentFormModal.style.display = 'flex';
+                });
+
+                cancelInvestmentFormBtn.addEventListener('click', () => {
+                    investmentFormModal.style.display = 'none';
+                });
+
+                investmentsList.addEventListener('click', async (e) => {
+                    if (e.target.classList.contains('edit-investment-btn')) {
+                        const investmentId = e.target.dataset.id;
+                        const doc = await firestore.collection('investments').doc(investmentId).get();
+                        const investment = doc.data();
+                        document.getElementById('investment-id').value = doc.id;
+                        document.getElementById('investment-project-name').value = investment.projectName;
+                        document.getElementById('investment-description').value = investment.description || '';
+                        document.getElementById('investment-target-amount').value = investment.targetAmount;
+                        document.getElementById('investment-pledged-amount').value = investment.pledgedAmount || 0;
+                        document.getElementById('investment-status').value = investment.status;
+                        investmentFormModal.style.display = 'flex';
+                    }
+                    if (e.target.dataset.action === 'mark-completed') {
+                        const investmentId = e.target.dataset.id;
+                        showConfirmationModal('Mark this investment as completed?', async () => {
+                            await firestore.collection('investments').doc(investmentId).update({ status: 'completed' });
+                        });
+                    }
+                    if (e.target.classList.contains('delete-investment-btn')) {
+                        const investmentId = e.target.dataset.id;
+                        showConfirmationModal('Are you sure you want to delete this investment?', async () => {
+                            await firestore.collection('investments').doc(investmentId).delete();
+                        });
+                    }
+                });
+
+                investmentForm.addEventListener('submit', async (e) => {
+                    e.preventDefault();
+                    const investmentId = document.getElementById('investment-id').value;
+                    const projectName = document.getElementById('investment-project-name').value;
+                    const description = document.getElementById('investment-description').value;
+                    const targetAmount = parseFloat(document.getElementById('investment-target-amount').value);
+                    const pledgedAmount = parseFloat(document.getElementById('investment-pledged-amount').value) || 0;
+                    const status = document.getElementById('investment-status').value;
+
+                    const investmentData = {
+                        projectName: projectName,
+                        description: description,
+                        targetAmount: targetAmount,
+                        pledgedAmount: pledgedAmount,
+                        status: status
+                    };
+
+                    if (investmentId) {
+                        await firestore.collection('investments').doc(investmentId).update(investmentData);
+                    } else {
+                        await firestore.collection('investments').add(investmentData);
+                    }
+                    investmentFormModal.style.display = 'none';
+                });
+
+                // Sorting functionality
+                contentContainer.querySelectorAll('.sort-icon').forEach(icon => {
+                    icon.addEventListener('click', (e) => {
+                        const sortBy = e.target.dataset.sort;
+                        const sortedInvestments = [...allInvestmentsData].sort((a, b) => {
+                            let valA = a[sortBy];
+                            let valB = b[sortBy];
+                            
+                            if (typeof valA === 'string') return valA.localeCompare(valB);
+                            return valA - valB;
+                        });
+                        allInvestmentsData = sortedInvestments;
+                        renderInvestmentsTable(allInvestmentsData);
+                    });
+                });
+            }
+            
+            async function renderVotingPolls() {
+                contentContainer.innerHTML = `
+                    <h2>Voting & Polls</h2>
+                    <div style="display: flex; gap: 10px; margin-bottom: 1rem; flex-wrap: wrap;">
+                        <input type="text" id="poll-search" placeholder="Search by title..." style="flex-grow: 1; padding: 8px; border-radius: 5px; border: 1px solid #ccc;">
+                        <button class="btn btn-primary" id="add-poll-btn">Create New Poll</button>
+                    </div>
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Title <span data-sort="title" class="sort-icon">⬆⬇</span></th>
+                                <th>Description</th>
+                                <th>Status <span data-sort="status" class="sort-icon">⬆⬇</span></th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="polls-list">
+                            <!-- Polls will be loaded here -->
+                        </tbody>
+                    </table>
+                    <div id="poll-form-modal" class="modal">
+                        <div class="modal-content">
+                            <h3>Create/Edit Poll</h3>
+                            <form id="poll-form">
+                                <input type="hidden" id="poll-id">
+                                <div class="form-group">
+                                    <label for="poll-title">Poll Title</label>
+                                    <input type="text" id="poll-title" required>
+                                </div>
+                                <div class="form-group">
+                                    <label for="poll-description">Description</label>
+                                    <textarea id="poll-description"></textarea>
+                                </div>
+                                <div class="form-group">
+                                    <label for="poll-options">Options (one per line)</label>
+                                    <textarea id="poll-options" placeholder="Option A\nOption B\nOption C" required></textarea>
+                                </div>
+                                <div class="form-group">
+                                    <label for="poll-status">Status</label>
+                                    <select id="poll-status">
+                                        <option value="open">Open</option>
+                                        <option value="closed">Closed</option>
+                                    </select>
+                                </div>
+                                <button type="submit" class="btn btn-primary">Save Poll</button>
+                                <button type="button" class="btn" id="cancel-poll-form">Cancel</button>
+                            </form>
+                        </div>
+                    </div>
+                    <div id="poll-results-modal" class="modal">
+                        <div class="modal-content">
+                            <h3 id="poll-results-title">Poll Results</h3>
+                            <div id="poll-results-chart-container" style="max-height: 400px;">
+                                <canvas id="poll-results-chart"></canvas>
+                            </div>
+                            <button type="button" class="btn" id="close-poll-results-modal">Close</button>
+                        </div>
+                    </div>`;
+                
+                const pollsList = document.getElementById('polls-list');
+                const pollSearchInput = document.getElementById('poll-search');
+                const addPollBtn = document.getElementById('add-poll-btn');
+                const pollFormModal = document.getElementById('poll-form-modal');
+                const pollForm = document.getElementById('poll-form');
+                const cancelPollFormBtn = document.getElementById('cancel-poll-form');
+                const pollResultsModal = document.getElementById('poll-results-modal');
+                const closePollResultsModalBtn = document.getElementById('close-poll-results-modal');
+                let allPollsData = [];
+
+                const renderPollsTable = (pollsToDisplay) => {
+                    pollsList.innerHTML = '';
+                    pollsToDisplay.forEach(poll => {
+                        const tr = document.createElement('tr');
+                        tr.innerHTML = `
+                            <td>${poll.title}</td>
+                            <td>${poll.description || 'N/A'}</td>
+                            <td>${poll.status}</td>
+                            <td>
+                                <button class="btn btn-primary edit-poll-btn" data-id="${poll.id}">Edit</button>
+                                <button class="btn" data-action="view-results" data-id="${poll.id}" style="background-color: #007bff; color: white;">View Results</button>
+                                ${poll.status === 'open' ? `<button class="btn" data-action="close-poll" data-id="${poll.id}" style="background-color: #dc3545; color: white;">Close Poll</button>` : ''}
+                                <button class="btn delete-poll-btn" data-id="${poll.id}" style="background-color: #ffc107; color: black;">Delete</button>
+                            </td>`;
+                        pollsList.appendChild(tr);
+                    });
+                };
+
+                firestore.collection('polls').onSnapshot(snapshot => {
+                    allPollsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                    renderPollsTable(allPollsData);
+                });
+
+                // Search functionality
+                pollSearchInput.addEventListener('keyup', () => {
+                    const searchTerm = pollSearchInput.value.toLowerCase();
+                    const filteredPolls = allPollsData.filter(p => 
+                        (p.title || '').toLowerCase().includes(searchTerm) ||
+                        (p.description || '').toLowerCase().includes(searchTerm)
+                    );
+                    renderPollsTable(filteredPolls);
+                });
+
+                // Create/Edit Poll
+                addPollBtn.addEventListener('click', () => {
+                    pollForm.reset();
+                    document.getElementById('poll-id').value = '';
+                    pollFormModal.style.display = 'flex';
+                });
+
+                cancelPollFormBtn.addEventListener('click', () => {
+                    pollFormModal.style.display = 'none';
+                });
+
+                pollsList.addEventListener('click', async (e) => {
+                    if (e.target.classList.contains('edit-poll-btn')) {
+                        const pollId = e.target.dataset.id;
+                        const doc = await firestore.collection('polls').doc(pollId).get();
+                        const poll = doc.data();
+                        document.getElementById('poll-id').value = doc.id;
+                        document.getElementById('poll-title').value = poll.title;
+                        document.getElementById('poll-description').value = poll.description || '';
+                        document.getElementById('poll-options').value = poll.options.join('\n') || '';
+                        document.getElementById('poll-status').value = poll.status;
+                        pollFormModal.style.display = 'flex';
+                    }
+                    if (e.target.dataset.action === 'close-poll') {
+                        const pollId = e.target.dataset.id;
+                        showConfirmationModal('Are you sure you want to close this poll?', async () => {
+                            await firestore.collection('polls').doc(pollId).update({ status: 'closed' });
+                        });
+                    }
+                    if (e.target.dataset.action === 'view-results') {
+                        const pollId = e.target.dataset.id;
+                        const doc = await firestore.collection('polls').doc(pollId).get();
+                        const poll = doc.data();
+                        document.getElementById('poll-results-title').textContent = `Results for: ${poll.title}`;
+                        
+                        const pollResultsChartCtx = document.getElementById('poll-results-chart').getContext('2d');
+                        // Destroy old chart instance if exists
+                        if (window.myPollChart instanceof Chart) {
+                            window.myPollChart.destroy();
+                        }
+
+                        const labels = poll.options || [];
+                        const data = poll.votes ? Object.values(poll.votes) : Array(labels.length).fill(0); // Assuming votes are stored as { "Option A": 10, "Option B": 5 }
+
+                        window.myPollChart = new Chart(pollResultsChartCtx, {
+                            type: 'bar',
+                            data: {
+                                labels: labels,
+                                datasets: [{
+                                    label: 'Number of Votes',
+                                    data: data,
+                                    backgroundColor: [
+                                        'rgba(128, 0, 0, 0.6)', 'rgba(54, 162, 235, 0.6)', 'rgba(255, 206, 86, 0.6)',
+                                        'rgba(75, 192, 192, 0.6)', 'rgba(153, 102, 255, 0.6)', 'rgba(255, 159, 64, 0.6)'
+                                    ],
+                                    borderColor: [
+                                        'rgba(128, 0, 0, 1)', 'rgba(54, 162, 235, 1)', 'rgba(255, 206, 86, 1)',
+                                        'rgba(75, 192, 192, 1)', 'rgba(153, 102, 255, 1)', 'rgba(255, 159, 64, 1)'
+                                    ],
+                                    borderWidth: 1
+                                }]
+                            },
+                            options: {
+                                responsive: true,
+                                maintainAspectRatio: false,
+                                scales: {
+                                    y: {
+                                        beginAtZero: true,
+                                        ticks: {
+                                            stepSize: 1
+                                        }
+                                    }
+                                }
+                            }
+                        });
+
+                        pollResultsModal.style.display = 'flex';
+                    }
+                    if (e.target.classList.contains('delete-poll-btn')) {
+                        const pollId = e.target.dataset.id;
+                        showConfirmationModal('Are you sure you want to delete this poll?', async () => {
+                            await firestore.collection('polls').doc(pollId).delete();
+                        });
+                    }
+                });
+
+                closePollResultsModalBtn.addEventListener('click', () => {
+                    pollResultsModal.style.display = 'none';
+                });
+
+                pollForm.addEventListener('submit', async (e) => {
+                    e.preventDefault();
+                    const pollId = document.getElementById('poll-id').value;
+                    const title = document.getElementById('poll-title').value;
+                    const description = document.getElementById('poll-description').value;
+                    const options = document.getElementById('poll-options').value.split('\n').map(opt => opt.trim()).filter(opt => opt !== '');
+                    const status = document.getElementById('poll-status').value;
+
+                    // Initialize votes for new polls
+                    const votes = {};
+                    if (!pollId) { // Only for new polls
+                        options.forEach(option => {
+                            votes[option] = 0;
+                        });
+                    } else {
+                        // For existing polls, fetch current votes and update options
+                        const existingPoll = (await firestore.collection('polls').doc(pollId).get()).data();
+                        if (existingPoll && existingPoll.votes) {
+                            // Preserve existing votes for options that still exist
+                            for (const opt of options) {
+                                votes[opt] = existingPoll.votes[opt] || 0;
+                            }
+                        }
+                    }
+
+
+                    const pollData = {
+                        title: title,
+                        description: description,
+                        options: options,
+                        status: status,
+                        votes: votes // Include votes data
+                    };
+
+                    if (pollId) {
+                        await firestore.collection('polls').doc(pollId).update(pollData);
+                    } else {
+                        await firestore.collection('polls').add(pollData);
+                    }
+                    pollFormModal.style.display = 'none';
+                });
+
+                // Sorting functionality
+                contentContainer.querySelectorAll('.sort-icon').forEach(icon => {
+                    icon.addEventListener('click', (e) => {
+                        const sortBy = e.target.dataset.sort;
+                        const sortedPolls = [...allPollsData].sort((a, b) => {
+                            let valA = a[sortBy];
+                            let valB = b[sortBy];
+                            
+                            if (typeof valA === 'string') return valA.localeCompare(valB);
+                            return valA - valB;
+                        });
+                        allPollsData = sortedPolls;
+                        renderPollsTable(allPollsData);
+                    });
+                });
+            }
+            
+            async function renderDocumentsManagement() {
+                contentContainer.innerHTML = `
+                    <h2>Documents Management</h2>
+                    <div style="display: flex; gap: 10px; margin-bottom: 1rem; flex-wrap: wrap;">
+                        <input type="text" id="document-search" placeholder="Search by name or type..." style="flex-grow: 1; padding: 8px; border-radius: 5px; border: 1px solid #ccc;">
+                        <button class="btn btn-primary" id="add-document-btn">Upload New Document</button>
+                    </div>
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Document Name <span data-sort="name" class="sort-icon">⬆⬇</span></th>
+                                <th>File Type</th>
+                                <th>Uploaded By</th>
+                                <th>Upload Date <span data-sort="uploadDate" class="sort-icon">⬆⬇</span></th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="documents-list">
+                            <!-- Documents will be loaded here -->
+                        </tbody>
+                    </table>
+                    <div id="document-form-modal" class="modal">
+                        <div class="modal-content">
+                            <h3>Upload Document</h3>
+                            <form id="document-form">
+                                <input type="hidden" id="document-id">
+                                <div class="form-group">
+                                    <label for="document-name">Document Name</label>
+                                    <input type="text" id="document-name" required>
+                                </div>
+                                <div class="form-group">
+                                    <label for="document-file">Select File</label>
+                                    <input type="file" id="document-file" required>
+                                </div>
+                                <button type="submit" class="btn btn-primary">Upload Document</button>
+                                <button type="button" class="btn" id="cancel-document-form">Cancel</button>
+                            </form>
+                        </div>
+                    </div>`;
+                
+                const documentsList = document.getElementById('documents-list');
+                const documentSearchInput = document.getElementById('document-search');
+                const addDocumentBtn = document.getElementById('add-document-btn');
+                const documentFormModal = document.getElementById('document-form-modal');
+                const documentForm = document.getElementById('document-form');
+                const cancelDocumentFormBtn = document.getElementById('cancel-document-form');
+                let allDocumentsData = [];
+
+                const renderDocumentsTable = (documentsToDisplay) => {
+                    documentsList.innerHTML = '';
+                    documentsToDisplay.forEach(doc => {
+                        const tr = document.createElement('tr');
+                        const uploadDate = doc.uploadDate ? new Date(doc.uploadDate.seconds * 1000).toLocaleDateString() : 'N/A';
+                        tr.innerHTML = `
+                            <td>${doc.name}</td>
+                            <td>${doc.fileType || 'N/A'}</td>
+                            <td>${doc.uploadedBy || 'Admin'}</td>
+                            <td>${uploadDate}</td>
+                            <td>
+                                <a href="${doc.downloadUrl}" target="_blank" class="btn btn-primary" style="background-color: #007bff;">Download</a>
+                                <button class="btn delete-document-btn" data-id="${doc.id}" data-path="${doc.filePath}" style="background-color: #ffc107; color: black;">Delete</button>
+                            </td>`;
+                        documentsList.appendChild(tr);
+                    });
+                };
+
+                firestore.collection('documents').onSnapshot(snapshot => {
+                    allDocumentsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                    renderDocumentsTable(allDocumentsData);
+                });
+
+                // Search functionality
+                documentSearchInput.addEventListener('keyup', () => {
+                    const searchTerm = documentSearchInput.value.toLowerCase();
+                    const filteredDocuments = allDocumentsData.filter(d => 
+                        (d.name || '').toLowerCase().includes(searchTerm) ||
+                        (d.fileType || '').toLowerCase().includes(searchTerm)
+                    );
+                    renderDocumentsTable(filteredDocuments);
+                });
+
+                // Upload Document
+                addDocumentBtn.addEventListener('click', () => {
+                    documentForm.reset();
+                    document.getElementById('document-id').value = '';
+                    documentFormModal.style.display = 'flex';
+                });
+
+                cancelDocumentFormBtn.addEventListener('click', () => {
+                    documentFormModal.style.display = 'none';
+                });
+
+                documentForm.addEventListener('submit', async (e) => {
+                    e.preventDefault();
+                    const docName = document.getElementById('document-name').value;
+                    const file = document.getElementById('document-file').files[0];
+
+                    if (!file) {
+                        alert('Please select a file to upload.');
+                        return;
+                    }
+
+                    const filePath = `documents/${Date.now()}_${file.name}`;
+                    const storageRef = storage.ref(filePath);
+                    
+                    try {
+                        await storageRef.put(file);
+                        const downloadUrl = await storageRef.getDownloadURL();
+
+                        const documentData = {
+                            name: docName,
+                            fileType: file.type,
+                            filePath: filePath, // Store path to delete later
+                            downloadUrl: downloadUrl,
+                            uploadedBy: auth.currentUser ? auth.currentUser.email : 'Admin',
+                            uploadDate: firebase.firestore.FieldValue.serverTimestamp()
+                        };
+
+                        await firestore.collection('documents').add(documentData);
+                        documentFormModal.style.display = 'none';
+                    } catch (error) {
+                        console.error("Error uploading file:", error);
+                        alert("Failed to upload document: " + error.message);
+                    }
+                });
+
+                // Delete Document
+                documentsList.addEventListener('click', async (e) => {
+                    if (e.target.classList.contains('delete-document-btn')) {
+                        const documentId = e.target.dataset.id;
+                        const filePath = e.target.dataset.path;
+                        showConfirmationModal('Are you sure you want to delete this document?', async () => {
+                            try {
+                                // Delete from Storage
+                                if (filePath) {
+                                    await storage.ref(filePath).delete();
+                                }
+                                // Delete from Firestore
+                                await firestore.collection('documents').doc(documentId).delete();
+                            } catch (error) {
+                                console.error("Error deleting document:", error);
+                                alert("Failed to delete document: " + error.message);
+                            }
+                        });
+                    }
+                });
+
+                // Sorting functionality
+                contentContainer.querySelectorAll('.sort-icon').forEach(icon => {
+                    icon.addEventListener('click', (e) => {
+                        const sortBy = e.target.dataset.sort;
+                        const sortedDocuments = [...allDocumentsData].sort((a, b) => {
+                            let valA = a[sortBy];
+                            let valB = b[sortBy];
+
+                            if (sortBy === 'uploadDate') { 
+                                valA = a.uploadDate ? a.uploadDate.toMillis() : 0;
+                                valB = b.uploadDate ? b.uploadDate.toMillis() : 0;
+                            }
+                            
+                            if (typeof valA === 'string') return valA.localeCompare(valB);
+                            return valA - valB;
+                        });
+                        allDocumentsData = sortedDocuments;
+                        renderDocumentsTable(allDocumentsData);
+                    });
+                });
+            }
+
+            async function renderAttendance() {
+                contentContainer.innerHTML = `
+                    <h2>Attendance</h2>
+                    <div style="display: flex; gap: 10px; margin-bottom: 1rem; flex-wrap: wrap;">
+                        <input type="date" id="attendance-date-filter" style="padding: 8px; border-radius: 5px; border: 1px solid #ccc;">
+                        <button class="btn btn-primary" id="export-attendance-btn">Export Attendance (CSV)</button>
+                        <button class="btn btn-primary" id="new-attendance-record-btn">New Attendance Record</button>
+                    </div>
+                    <table class="data-table" id="attendance-table">
+                        <thead>
+                            <tr>
+                                <th>Date <span data-sort="date" class="sort-icon">⬆⬇</span></th>
+                                <th>Member Name <span data-sort="memberName" class="sort-icon">⬆⬇</span></th>
+                                <th>Status <span data-sort="status" class="sort-icon">⬆⬇</span></th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="attendance-list">
+                            <!-- Attendance records will be loaded here -->
+                        </tbody>
+                    </table>
+                    <div id="attendance-form-modal" class="modal">
+                        <div class="modal-content">
+                            <h3>Mark Attendance for Date: <span id="attendance-form-date-display"></span></h3>
+                            <form id="attendance-form">
+                                <input type="hidden" id="attendance-record-date-input">
+                                <div id="members-for-attendance">
+                                    <!-- Member checkboxes will be dynamically loaded here -->
+                                </div>
+                                <button type="submit" class="btn btn-primary">Save Attendance</button>
+                                <button type="button" class="btn" id="cancel-attendance-form">Cancel</button>
+                            </form>
+                        </div>
+                    </div>`;
+                
+                const attendanceList = document.getElementById('attendance-list');
+                const attendanceDateFilter = document.getElementById('attendance-date-filter');
+                const exportAttendanceBtn = document.getElementById('export-attendance-btn');
+                const newAttendanceRecordBtn = document.getElementById('new-attendance-record-btn');
+                const attendanceFormModal = document.getElementById('attendance-form-modal');
+                const attendanceForm = document.getElementById('attendance-form');
+                const cancelAttendanceFormBtn = document.getElementById('cancel-attendance-form');
+                const attendanceFormDateDisplay = document.getElementById('attendance-form-date-display');
+                const membersForAttendanceDiv = document.getElementById('members-for-attendance');
+
+                let allAttendanceData = [];
+                let allMembers = []; // Store all members for attendance marking
+
+                // Fetch all members once for the attendance marking feature
+                firestore.collection('members').onSnapshot(snapshot => {
+                    allMembers = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                });
+
+
+                const renderAttendanceTable = (attendanceToDisplay) => {
+                    attendanceList.innerHTML = '';
+                    attendanceToDisplay.forEach(record => {
+                        const tr = document.createElement('tr');
+                        const date = record.date ? new Date(record.date.seconds * 1000).toLocaleDateString() : 'N/A';
+                        tr.innerHTML = `
+                            <td>${date}</td>
+                            <td>${record.memberName}</td>
+                            <td>${record.status}</td>
+                            <td>
+                                <button class="btn delete-attendance-btn" data-id="${record.id}" style="background-color: #ffc107; color: black;">Delete</button>
+                            </td>`;
+                        attendanceList.appendChild(tr);
+                    });
+                };
+
+                firestore.collection('attendance').onSnapshot(snapshot => {
+                    allAttendanceData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                    renderAttendanceTable(allAttendanceData);
+                });
+
+                // Filter by date
+                attendanceDateFilter.addEventListener('change', () => {
+                    const filterDate = attendanceDateFilter.value;
+                    let filtered = [...allAttendanceData];
+                    if (filterDate) {
+                        filtered = filtered.filter(record => {
+                            const recordDate = record.date ? new Date(record.date.seconds * 1000).toISOString().split('T')[0] : '';
+                            return recordDate === filterDate;
+                        });
+                    }
+                    renderAttendanceTable(filtered);
+                });
+
+                // Export to CSV
+                exportAttendanceBtn.addEventListener('click', () => {
+                    let csvContent = "data:text/csv;charset=utf-8,";
+                    csvContent += "Date,Member Name,Status\n"; // CSV Headers
+
+                    allAttendanceData.forEach(record => {
+                        const date = record.date ? new Date(record.date.seconds * 1000).toLocaleDateString() : 'N/A';
+                        csvContent += `${date},"${record.memberName}","${record.status}"\n`;
+                    });
+
+                    const encodedUri = encodeURI(csvContent);
+                    const link = document.createElement("a");
+                    link.setAttribute("href", encodedUri);
+                    link.setAttribute("download", "chama_attendance.csv");
+                    document.body.appendChild(link); // Required for Firefox
+                    link.click();
+                    document.body.removeChild(link);
+                });
+
+                // New Attendance Record
+                newAttendanceRecordBtn.addEventListener('click', () => {
+                    attendanceForm.reset();
+                    document.getElementById('attendance-record-date-input').value = new Date().toISOString().split('T')[0];
+                    attendanceFormDateDisplay.textContent = new Date().toLocaleDateString();
+                    membersForAttendanceDiv.innerHTML = '';
+
+                    allMembers.forEach(member => {
+                        const div = document.createElement('div');
+                        div.innerHTML = `
+                            <input type="checkbox" id="member-${member.id}" name="attendance-member" value="${member.id}" data-name="${member.name}">
+                            <label for="member-${member.id}">${member.name}</label>`;
+                        membersForAttendanceDiv.appendChild(div);
+                    });
+                    attendanceFormModal.style.display = 'flex';
+                });
+
+                cancelAttendanceFormBtn.addEventListener('click', () => {
+                    attendanceFormModal.style.display = 'none';
+                });
+
+                attendanceForm.addEventListener('submit', async (e) => {
+                    e.preventDefault();
+                    const recordDate = new Date(document.getElementById('attendance-record-date-input').value);
+                    const checkedMembers = document.querySelectorAll('input[name="attendance-member"]:checked');
+
+                    for (const memberCheckbox of checkedMembers) {
+                        const memberId = memberCheckbox.value;
+                        const memberName = memberCheckbox.dataset.name;
+                        await firestore.collection('attendance').add({
+                            memberId: memberId,
+                            memberName: memberName,
+                            date: firebase.firestore.Timestamp.fromDate(recordDate),
+                            status: 'present'
+                        });
+                    }
+
+                    // For members not checked, you might want to mark them 'absent'
+                    // This would require checking all members and comparing with checked ones.
+                    // For simplicity, this example only adds 'present' records.
+
+                    attendanceFormModal.style.display = 'none';
+                });
+
+                // Delete Attendance Record
+                attendanceList.addEventListener('click', async (e) => {
+                    if (e.target.classList.contains('delete-attendance-btn')) {
+                        const recordId = e.target.dataset.id;
+                        showConfirmationModal('Are you sure you want to delete this attendance record?', async () => {
+                            await firestore.collection('attendance').doc(recordId).delete();
+                        });
+                    }
+                });
+
+                // Sorting functionality
+                contentContainer.querySelectorAll('.sort-icon').forEach(icon => {
+                    icon.addEventListener('click', (e) => {
+                        const sortBy = e.target.dataset.sort;
+                        const sortedAttendance = [...allAttendanceData].sort((a, b) => {
+                            let valA = a[sortBy];
+                            let valB = b[sortBy];
+
+                            if (sortBy === 'date') { 
+                                valA = a.date ? a.date.toMillis() : 0;
+                                valB = b.date ? b.date.toMillis() : 0;
+                            } else if (sortBy === 'memberName') { 
+                                // Member name is already directly on the attendance record for display, so use it.
+                            }
+                            
+                            if (typeof valA === 'string') return valA.localeCompare(valB);
+                            return valA - valB;
+                        });
+                        allAttendanceData = sortedAttendance;
+                        renderAttendanceTable(allAttendanceData);
+                    });
+                });
+            }
+
+            async function renderNotifications() {
+                contentContainer.innerHTML = `
+                    <h2>Notifications</h2>
+                    <div style="margin-bottom: 1rem;">
+                        <button class="btn btn-primary" id="compose-notification-btn">Compose New Notification</button>
+                    </div>
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Subject <span data-sort="subject" class="sort-icon">⬆⬇</span></th>
+                                <th>Message</th>
+                                <th>Recipients</th>
+                                <th>Date Sent <span data-sort="timestamp" class="sort-icon">⬆⬇</span></th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="notifications-list">
+                            <!-- Notifications will be loaded here -->
+                        </tbody>
+                    </table>
+                    <div id="notification-form-modal" class="modal">
+                        <div class="modal-content">
+                            <h3>Compose Notification</h3>
+                            <form id="notification-form">
+                                <div class="form-group">
+                                    <label for="notification-subject">Subject</label>
+                                    <input type="text" id="notification-subject" required>
+                                </div>
+                                <div class="form-group">
+                                    <label for="notification-message">Message</label>
+                                    <textarea id="notification-message" rows="5" required></textarea>
+                                </div>
+                                <div class="form-group">
+                                    <label>Recipients</label>
+                                    <div>
+                                        <input type="checkbox" id="send-to-all"> <label for="send-to-all">Send to All Members</label>
+                                    </div>
+                                    <div id="notification-member-selects" style="margin-top: 10px; border: 1px solid #eee; padding: 10px; max-height: 150px; overflow-y: auto;">
+                                        <!-- Dynamic member checkboxes -->
+                                    </div>
+                                </div>
+                                <button type="submit" class="btn btn-primary">Send Notification</button>
+                                <button type="button" class="btn" id="cancel-notification-form">Cancel</button>
+                            </form>
+                        </div>
+                    </div>`;
+                
+                const notificationsList = document.getElementById('notifications-list');
+                const composeNotificationBtn = document.getElementById('compose-notification-btn');
+                const notificationFormModal = document.getElementById('notification-form-modal');
+                const notificationForm = document.getElementById('notification-form');
+                const cancelNotificationFormBtn = document.getElementById('cancel-notification-form');
+                const sendToAllCheckbox = document.getElementById('send-to-all');
+                const notificationMemberSelectsDiv = document.getElementById('notification-member-selects');
+                
+                let allNotificationsData = [];
+                let allMembers = [];
+
+                // Fetch members to populate recipient list
+                firestore.collection('members').get().then(snapshot => {
+                    allMembers = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                    renderMemberCheckboxes();
+                });
+
+                const renderMemberCheckboxes = () => {
+                    notificationMemberSelectsDiv.innerHTML = '';
+                    allMembers.forEach(member => {
+                        const div = document.createElement('div');
+                        div.innerHTML = `
+                            <input type="checkbox" id="notify-member-${member.id}" class="notification-member-checkbox" value="${member.email}">
+                            <label for="notify-member-${member.id}">${member.name} (${member.email})</label>`;
+                        notificationMemberSelectsDiv.appendChild(div);
+                    });
+                };
+
+                const renderNotificationsTable = (notificationsToDisplay) => {
+                    notificationsList.innerHTML = '';
+                    notificationsToDisplay.forEach(notification => {
+                        const tr = document.createElement('tr');
+                        const dateSent = notification.timestamp ? new Date(notification.timestamp.seconds * 1000).toLocaleString() : 'N/A';
+                        tr.innerHTML = `
+                            <td>${notification.subject}</td>
+                            <td>${notification.message.substring(0, 50)}...</td>
+                            <td>${notification.recipients === 'all' ? 'All Members' : (notification.recipients || []).join(', ').substring(0, 30) + '...'}</td>
+                            <td>${dateSent}</td>
+                            <td>
+                                <button class="btn delete-notification-btn" data-id="${notification.id}" style="background-color: #ffc107; color: black;">Delete</button>
+                            </td>`;
+                        notificationsList.appendChild(tr);
+                    });
+                };
+
+                firestore.collection('notifications').onSnapshot(snapshot => {
+                    allNotificationsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                    renderNotificationsTable(allNotificationsData);
+                });
+
+                // Compose Notification
+                composeNotificationBtn.addEventListener('click', () => {
+                    notificationForm.reset();
+                    sendToAllCheckbox.checked = false;
+                    document.querySelectorAll('.notification-member-checkbox').forEach(cb => cb.checked = false);
+                    notificationMemberSelectsDiv.style.display = 'block'; // Ensure individual selection is visible
+                    notificationFormModal.style.display = 'flex';
+                });
+
+                cancelNotificationFormBtn.addEventListener('click', () => {
+                    notificationFormModal.style.display = 'none';
+                });
+
+                sendToAllCheckbox.addEventListener('change', (e) => {
+                    if (e.target.checked) {
+                        notificationMemberSelectsDiv.style.display = 'none';
+                        document.querySelectorAll('.notification-member-checkbox').forEach(cb => cb.checked = false);
+                    } else {
+                        notificationMemberSelectsDiv.style.display = 'block';
+                    }
+                });
+
+                notificationForm.addEventListener('submit', async (e) => {
+                    e.preventDefault();
+                    const subject = document.getElementById('notification-subject').value;
+                    const message = document.getElementById('notification-message').value;
+                    let recipients = [];
+
+                    if (sendToAllCheckbox.checked) {
+                        recipients = 'all';
+                    } else {
+                        document.querySelectorAll('.notification-member-checkbox:checked').forEach(cb => {
+                            recipients.push(cb.value); // Store email addresses
+                        });
+                    }
+
+                    if (recipients.length === 0 && recipients !== 'all') {
+                        alert('Please select recipients or choose "Send to All".');
+                        return;
+                    }
+
+                    const notificationData = {
+                        subject: subject,
+                        message: message,
+                        recipients: recipients,
+                        timestamp: firebase.firestore.FieldValue.serverTimestamp()
+                    };
+
+                    // In a real application, you'd trigger a Cloud Function here
+                    // to send actual emails/SMS using a service like SendGrid or Twilio.
+                    // For this HTML-only dashboard, we'll just store it in Firestore.
+                    await firestore.collection('notifications').add(notificationData);
+                    alert('Notification saved (actual sending would be done via backend).');
+                    notificationFormModal.style.display = 'none';
+                });
+
+                // Delete Notification
+                notificationsList.addEventListener('click', async (e) => {
+                    if (e.target.classList.contains('delete-notification-btn')) {
+                        const notificationId = e.target.dataset.id;
+                        showConfirmationModal('Are you sure you want to delete this notification record?', async () => {
+                            await firestore.collection('notifications').doc(notificationId).delete();
+                        });
+                    }
+                });
+
+                // Sorting functionality
+                contentContainer.querySelectorAll('.sort-icon').forEach(icon => {
+                    icon.addEventListener('click', (e) => {
+                        const sortBy = e.target.dataset.sort;
+                        const sortedNotifications = [...allNotificationsData].sort((a, b) => {
+                            let valA = a[sortBy];
+                            let valB = b[sortBy];
+
+                            if (sortBy === 'timestamp') { 
+                                valA = a.timestamp ? a.timestamp.toMillis() : 0;
+                                valB = b.timestamp ? b.timestamp.toMillis() : 0;
+                            }
+                            
+                            if (typeof valA === 'string') return valA.localeCompare(valB);
+                            return valA - valB;
+                        });
+                        allNotificationsData = sortedNotifications;
+                        renderNotificationsTable(allNotificationsData);
+                    });
+                });
+            }
+            
+            async function renderReports() {
+                contentContainer.innerHTML = `
+                    <h2>Reports</h2>
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1rem; margin-bottom: 2rem;">
+                        <button class="btn btn-primary" id="generate-financial-report-btn">Financial Statements (CSV)</button>
+                        <button class="btn btn-primary" id="generate-contributions-summary-btn">Contributions Summary (CSV)</button>
+                        <button class="btn btn-primary" id="generate-loan-report-btn">Loan Report (CSV)</button>
+                        <button class="btn btn-primary" id="generate-fines-report-btn">Fines Report (CSV)</button>
+                    </div>`;
+                
+                // Financial Statements
+                document.getElementById('generate-financial-report-btn').addEventListener('click', async () => {
+                    const contributions = (await firestore.collection('contributions').get()).docs.map(doc => doc.data());
+                    const loans = (await firestore.collection('loans').get()).docs.map(doc => doc.data());
+                    const fines = (await firestore.collection('fines').get()).docs.map(doc => doc.data());
+                    
+                    let totalContributions = contributions.reduce((sum, c) => sum + c.amount, 0);
+                    let totalLoansIssued = loans.reduce((sum, l) => sum + l.amount, 0);
+                    let totalLoansRepaid = loans.reduce((sum, l) => sum + (l.repaidAmount || 0), 0);
+                    let totalFinesIssued = fines.reduce((sum, f) => sum + f.amount, 0);
+                    let totalFinesPaid = fines.filter(f => f.status === 'paid').reduce((sum, f) => sum + f.amount, 0);
+
+                    let csvContent = "data:text/csv;charset=utf-8,";
+                    csvContent += "Report Type,Amount\n";
+                    csvContent += `Total Contributions,${totalContributions.toFixed(2)}\n`;
+                    csvContent += `Total Loans Issued,${totalLoansIssued.toFixed(2)}\n`;
+                    csvContent += `Total Loans Repaid,${totalLoansRepaid.toFixed(2)}\n`;
+                    csvContent += `Total Fines Issued,${totalFinesIssued.toFixed(2)}\n`;
+                    csvContent += `Total Fines Paid,${totalFinesPaid.toFixed(2)}\n`;
+                    csvContent += `Net Funds (Simplified Calculation),${(totalContributions + totalFinesPaid - totalLoansIssued).toFixed(2)}\n`;
+
+                    downloadCSV(csvContent, 'financial_statements.csv');
+                });
+
+                // Contributions Summary
+                document.getElementById('generate-contributions-summary-btn').addEventListener('click', async () => {
+                    const contributionsSnapshot = await firestore.collection('contributions').get();
+                    const membersSnapshot = await firestore.collection('members').get();
+                    const membersMap = {};
+                    membersSnapshot.forEach(doc => membersMap[doc.id] = doc.data().name);
+
+                    let csvContent = "data:text/csv;charset=utf-8,";
+                    csvContent += "Member Name,Amount,Date,Description\n";
+
+                    contributionsSnapshot.forEach(doc => {
+                        const c = doc.data();
+                        const memberName = membersMap[c.memberId] || 'Unknown';
+                        const date = c.date ? new Date(c.date.seconds * 1000).toLocaleDateString() : 'N/A';
+                        csvContent += `"${memberName}",${c.amount.toFixed(2)},"${date}","${c.description || ''}"\n`;
+                    });
+                    downloadCSV(csvContent, 'contributions_summary.csv');
+                });
+
+                // Loan Report
+                document.getElementById('generate-loan-report-btn').addEventListener('click', async () => {
+                    const loansSnapshot = await firestore.collection('loans').get();
+                    const membersSnapshot = await firestore.collection('members').get();
+                    const membersMap = {};
+                    membersSnapshot.forEach(doc => membersMap[doc.id] = doc.data().name);
+
+                    let csvContent = "data:text/csv;charset=utf-8,";
+                    csvContent += "Member Name,Amount,Interest Rate,Due Date,Status,Repaid Amount,Balance\n";
+
+                    loansSnapshot.forEach(doc => {
+                        const l = doc.data();
+                        const memberName = membersMap[l.memberId] || 'Unknown';
+                        const dueDate = l.dueDate ? new Date(l.dueDate.seconds * 1000).toLocaleDateString() : 'N/A';
+                        const balance = (l.amount * (1 + l.interestRate / 100)) - (l.repaidAmount || 0);
+                        csvContent += `"${memberName}",${l.amount.toFixed(2)},${l.interestRate},"${dueDate}","${l.status}",${(l.repaidAmount || 0).toFixed(2)},${balance.toFixed(2)}\n`;
+                    });
+                    downloadCSV(csvContent, 'loan_report.csv');
+                });
+
+                // Fines Report
+                document.getElementById('generate-fines-report-btn').addEventListener('click', async () => {
+                    const finesSnapshot = await firestore.collection('fines').get();
+                    const membersSnapshot = await firestore.collection('members').get();
+                    const membersMap = {};
+                    membersSnapshot.forEach(doc => membersMap[doc.id] = doc.data().name);
+
+                    let csvContent = "data:text/csv;charset=utf-8,";
+                    csvContent += "Member Name,Reason,Amount,Date Issued,Status\n";
+
+                    finesSnapshot.forEach(doc => {
+                        const f = doc.data();
+                        const memberName = membersMap[f.memberId] || 'Unknown';
+                        const dateIssued = f.dateIssued ? new Date(f.dateIssued.seconds * 1000).toLocaleDateString() : 'N/A';
+                        csvContent += `"${memberName}","${f.reason}",${f.amount.toFixed(2)},"${dateIssued}","${f.status}"\n`;
+                    });
+                    downloadCSV(csvContent, 'fines_report.csv');
+                });
+
+                // Helper function to download CSV
+                function downloadCSV(content, filename) {
+                    const encodedUri = encodeURI(content);
+                    const link = document.createElement("a");
+                    link.setAttribute("href", encodedUri);
+                    link.setAttribute("download", filename);
+                    document.body.appendChild(link); // Required for Firefox
+                    link.click();
+                    document.body.removeChild(link);
+                    alert(`Generated and downloaded: ${filename}`);
+                }
+
+                // PDF export requires a library like html2pdf.js or jsPDF.
+                // For example, to generate a simple PDF:
+                // const html2pdfScript = document.createElement('script');
+                // html2pdfScript.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js';
+                // document.head.appendChild(html2pdfScript);
+                // Example usage: html2pdf().from(document.getElementById('report-content')).save('report.pdf');
+            }
+
+
+            // --- MODAL LOGIC (reusable) ---
+            function showConfirmationModal(message, onConfirm) {
+                document.getElementById('modal-message').textContent = message;
+                document.getElementById('confirmation-modal').style.display = 'flex';
+                
+                document.getElementById('modal-confirm-btn').onclick = () => {
+                    onConfirm();
+                    document.getElementById('confirmation-modal').style.display = 'none';
+                };
+                
+                document.getElementById('modal-cancel-btn').onclick = () => {
+                    document.getElementById('confirmation-modal').style.display = 'none';
+                };
+            }
+        }); // End of DOMContentLoaded
+    </script>
+</body>
+</html>
