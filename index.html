@@ -366,7 +366,7 @@
     <script type="module">
         // Firebase imports must be at the top level of the module
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-        import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, sendPasswordResetEmail, onAuthStateChanged, signInWithCustomToken, signInAnonymously } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+        import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, sendPasswordResetEmail, onAuthStateChanged, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
         import { getFirestore, doc, setDoc, getDoc, updateDoc, collection, addDoc, query, orderBy, onSnapshot, serverTimestamp, runTransaction } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
         // Wrap all JavaScript in DOMContentLoaded to ensure HTML is fully parsed before script execution
@@ -453,10 +453,13 @@
                     })
                     .catch((error) => {
                         console.error("Error signing in with custom token:", error.message);
-                        signInAnonymously(auth).catch(e => console.error("Anonymous sign-in failed:", e));
+                        // If custom token sign-in fails, do not attempt anonymous sign-in.
+                        // Instead, let the user proceed to login/signup.
                     });
             } else {
-                signInAnonymously(auth).catch(e => console.error("Anonymous sign-in failed:", e));
+                // If no custom token is provided, do not attempt anonymous sign-in.
+                // The user will be redirected to the login page by the onAuthStateChanged listener
+                // if they try to access authenticated routes.
             }
 
             // Authentication state change listener
