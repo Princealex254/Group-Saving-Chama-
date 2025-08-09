@@ -337,26 +337,25 @@
             const hamburger = document.querySelector('.hamburger');
 
             // Authentication State Listener
-            onAuthStateChanged(auth, user => { // Modular: onAuthStateChanged(auth, ...)
+            onAuthStateChanged(auth, async (user) => { // Added async for getDoc inside onAuthStateChanged
                 if (user) {
                     // Check if the user is an admin
-                    getDoc(doc(firestore, 'admins', user.email)).then(docSnapshot => { // Modular: doc(firestore, 'collection', id) and getDoc()
-                        if (docSnapshot.exists()) {
-                            loginPage.style.display = 'none';
-                            dashboardPage.style.display = 'block';
-                            renderSection('dashboard-overview'); // Load default section
-                        } else {
-                            // Not an admin, redirect
-                            signOut(auth); // Modular: signOut(auth)
-                            // Redirect to the main site login (replace with your actual main site login URL)
-                            window.location.href = 'https://your-main-chama-site.com/login.html'; 
-                        }
-                    }).catch(error => {
-                        console.error("Error checking admin status:", error);
-                        document.getElementById('login-error').textContent = "Error checking admin status. Please try again.";
-                        // In case of an error, sign out to prevent unauthorized access
-                        signOut(auth); // Modular: signOut(auth)
-                    });
+                    const adminRef = doc(firestore, "admins", user.email.toLowerCase()); // Modular: doc(firestore, collection, id)
+                    const adminSnap = await getDoc(adminRef); // Modular: getDoc(docRef)
+
+                    if (adminSnap.exists() && adminSnap.data().isAdmin === true) {
+                        // ✅ Admin verified
+                        loginPage.style.display = 'none';
+                        dashboardPage.style.display = 'block';
+                        console.log("Admin logged in:", user.email);
+                        renderSection('dashboard-overview'); // Load default section
+                    } else {
+                        // ❌ Not an admin or isAdmin is false, log them out
+                        await signOut(auth); // Modular: signOut(auth)
+                        alert("You are not authorized to access the admin dashboard.");
+                        // Redirect to the main site login (replace with your actual main site login URL)
+                        window.location.href = 'https://your-main-chama-site.com/login.html'; 
+                    }
                 } else {
                     loginPage.style.display = 'block';
                     dashboardPage.style.display = 'none';
