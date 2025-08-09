@@ -339,29 +339,34 @@
         </div>
     </div>
 
+    <!-- Firebase Config Injection - IMPORTANT FOR GITHUB PAGES DEPLOYMENT -->
+    <!-- This script provides the necessary global variables for Firebase initialization -->
+    <!-- Ensure these values match your actual Firebase project settings. -->
+    <script>
+        // Your Firebase project configuration
+        var __firebase_config = JSON.stringify({
+            apiKey: "AIzaSyC8-TWRr_vOMTv72scXxu-9l5uVHRVputo",
+            authDomain: "group-saving-chama.firebaseapp.com",
+            projectId: "group-saving-chama",
+            storageBucket: "group-saving-chama.firebasestorage.app",
+            messagingSenderId: "570981365925",
+            appId: "1:570981365925:web:42422e51e4e02c6ab4f54c"
+        });
+
+        // Your App ID (can be anything unique for your project)
+        var __app_id = "group-saving-chama";
+
+        // Optional: If you want to auto-login anonymously at start, set to null otherwise
+        var __initial_auth_token = null;
+    </script>
 
     <!-- Firebase SDKs and Main Application Logic -->
     <!-- Moved to the very bottom of <body> to ensure DOM is ready and reduce render-blocking -->
-    
-<!-- Firebase Config Injection -->
-<script>
-  var __firebase_config = JSON.stringify({
-    apiKey: "AIzaSyC8-TWRr_vOMTv72scXxu-9l5uVHRVputo",
-    authDomain: "group-saving-chama.firebaseapp.com",
-    projectId: "group-saving-chama",
-    storageBucket: "group-saving-chama.firebasestorage.app",
-    messagingSenderId: "570981365925",
-    appId: "1:570981365925:web:42422e51e4e02c6ab4f54c"
-  });
-  var __app_id = "group-saving-chama";
-  var __initial_auth_token = null;
-</script>
-
-<script type="module">
+    <script type="module">
         // Firebase imports must be at the top level of the module
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
         import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, sendPasswordResetEmail, onAuthStateChanged, signInWithCustomToken, signInAnonymously } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-        import { getFirestore, doc, setDoc, getDoc, updateDoc, collection, addDoc, query, orderBy, onSnapshot, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+        import { getFirestore, doc, setDoc, getDoc, updateDoc, collection, addDoc, query, orderBy, onSnapshot, serverTimestamp, runTransaction } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
         // Wrap all JavaScript in DOMContentLoaded to ensure HTML is fully parsed before script execution
         document.addEventListener("DOMContentLoaded", () => {
@@ -2588,7 +2593,7 @@
 
                     // 2. Atomically update the total pledged amount on the main investment document
                     // Use a transaction to ensure atomicity for concurrent updates
-                    const transactionResult = await db.runTransaction(async (transaction) => {
+                    const transactionResult = await runTransaction(db, async (transaction) => {
                         const sfDoc = await transaction.get(investmentRef);
                         if (!sfDoc.exists()) {
                             throw "Investment document does not exist!";
@@ -2681,7 +2686,7 @@
                     }
 
                     // Atomically update poll results using a transaction to prevent race conditions
-                    await db.runTransaction(async (transaction) => {
+                    await runTransaction(db, async (transaction) => {
                         const sfDoc = await transaction.get(pollRef);
                         if (!sfDoc.exists()) {
                             throw "Poll document does not exist!";
