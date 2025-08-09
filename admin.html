@@ -5,13 +5,18 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Prince Alex Digital - Chama Admin Dashboard</title>
     
-    <!-- Firebase SDKs -->
-    <script src="https://www.gstatic.com/firebasejs/9.1.0/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.1.0/firebase-auth-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.1.0/firebase-firestore-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.1.0/firebase-storage-compat.js"></script>
-    
-    <!-- Chart.js for graphs -->
+    <!-- Modular Firebase SDKs -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-app.js";
+        import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, signOut } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-auth.js";
+        import { getFirestore, collection, doc, getDoc, onSnapshot, updateDoc, addDoc, deleteDoc, serverTimestamp, query, where, getDocs } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore.js";
+        import { getStorage, ref, uploadBytes, getDownloadURL, deleteObject } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-storage.js";
+
+        // Chart.js for graphs
+        // Moved inside the script type="module" block for better scope management
+        // although it's generally fine as a global script.
+        // For larger apps, consider importing Chart.js via a module bundler.
+    </script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@3.7.0/dist/chart.min.js"></script>
     
     <style>
@@ -124,11 +129,13 @@
         }
 
         .form-group input,
-        .form-group select {
+        .form-group select,
+        .form-group textarea { /* Added textarea for consistency */
             width: 100%;
             padding: 10px;
             border: 1px solid #ccc;
             border-radius: 5px;
+            box-sizing: border-box; /* Ensures padding doesn't increase width */
         }
         
         /* Tables */
@@ -296,32 +303,31 @@
         </div>
     </div>
 
-    <script>
+    <script type="module">
+        // Import the functions you need from the SDKs you need
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-app.js";
+        import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, signOut } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-auth.js";
+        import { getFirestore, collection, doc, getDoc, onSnapshot, updateDoc, addDoc, deleteDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore.js";
+        import { getStorage, ref, uploadBytes, getDownloadURL, deleteObject } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-storage.js";
+        // Chart.js is already loaded as a global script, no need to import here.
+
+        // YOUR FIREBASE CONFIGURATION
+        const firebaseConfig = {
+            apiKey: "AIzaSyC8-TWRr_vOMTv72scXxu-9l5uVHRVputo",
+            authDomain: "group-saving-chama.firebaseapp.com",
+            projectId: "group-saving-chama",
+            storageBucket: "group-saving-chama.appspot.com", // Corrected storageBucket URL
+            messagingSenderId: "570981365925",
+            appId: "1:570981365925:web:42422e51e4e02c6ab4f54c"
+        };
+
+        // Initialize Firebase services
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const firestore = getFirestore(app);
+        const storage = getStorage(app);
+
         document.addEventListener('DOMContentLoaded', () => {
-            // YOUR FIREBASE CONFIGURATION - IMPORTANT: Replace with your actual project details
-            const firebaseConfig = {
-                apiKey: "AIzaSyC8-TWRr_vOMTv72scXxu-9l5uVHRVputo",
-                authDomain: "group-saving-chama.firebaseapp.com",
-                projectId: "group-saving-chama",
-                storageBucket: "group-saving-chama.firebasestorage.app",
-                messagingSenderId: "570981365925",
-                appId: "1:570981365925:web:42422e51e4e02c6ab4f54c"
-            };
-
-            // Initialize Firebase
-            let auth, firestore, storage;
-            try {
-                firebase.initializeApp(firebaseConfig);
-                auth = firebase.auth();
-                firestore = firebase.firestore();
-                storage = firebase.storage();
-            } catch (initError) {
-                console.error("Firebase initialization failed:", initError);
-                document.getElementById('login-error').textContent = "Failed to initialize app. Check Firebase config and console for errors.";
-                // Potentially hide the login form or show a more critical error message
-                return; // Stop script execution if Firebase fails to initialize
-            }
-
             // DOM Elements
             const loginPage = document.getElementById('login-page');
             const dashboardPage = document.getElementById('dashboard');
@@ -331,18 +337,17 @@
             const hamburger = document.querySelector('.hamburger');
 
             // Authentication State Listener
-            auth.onAuthStateChanged(user => {
+            onAuthStateChanged(auth, user => { // Modular: onAuthStateChanged(auth, ...)
                 if (user) {
                     // Check if the user is an admin
-                    // This assumes your 'admins' collection stores documents with the admin's email as the ID
-                    firestore.collection('admins').doc(user.email).get().then(doc => {
-                        if (doc.exists) {
+                    getDoc(doc(firestore, 'admins', user.email)).then(docSnapshot => { // Modular: doc(firestore, 'collection', id) and getDoc()
+                        if (docSnapshot.exists()) {
                             loginPage.style.display = 'none';
                             dashboardPage.style.display = 'block';
                             renderSection('dashboard-overview'); // Load default section
                         } else {
                             // Not an admin, redirect
-                            auth.signOut();
+                            signOut(auth); // Modular: signOut(auth)
                             // Redirect to the main site login (replace with your actual main site login URL)
                             window.location.href = 'https://your-main-chama-site.com/login.html'; 
                         }
@@ -350,7 +355,7 @@
                         console.error("Error checking admin status:", error);
                         document.getElementById('login-error').textContent = "Error checking admin status. Please try again.";
                         // In case of an error, sign out to prevent unauthorized access
-                        auth.signOut();
+                        signOut(auth); // Modular: signOut(auth)
                     });
                 } else {
                     loginPage.style.display = 'block';
@@ -359,14 +364,15 @@
             });
 
             // Handle Login
-            loginForm.addEventListener('submit', (e) => {
+            loginForm.addEventListener('submit', async (e) => { // Added async keyword for await signInWithEmailAndPassword
                 e.preventDefault();
                 const email = loginForm.email.value;
                 const password = loginForm.password.value;
-                auth.signInWithEmailAndPassword(email, password)
-                    .catch(error => {
-                        document.getElementById('login-error').textContent = error.message;
-                    });
+                try {
+                    await signInWithEmailAndPassword(auth, email, password); // Modular: signInWithEmailAndPassword(auth, ...)
+                } catch (error) {
+                    document.getElementById('login-error').textContent = error.message;
+                }
             });
 
             // Handle Sidebar Navigation
@@ -485,10 +491,10 @@
                     </div>`;
                 
                 // Fetch and display counts
-                firestore.collection('members').onSnapshot(snapshot => {
+                onSnapshot(collection(firestore, 'members'), snapshot => { // Modular: collection(firestore, 'collection')
                     document.getElementById('total-members').textContent = snapshot.size;
                 });
-                firestore.collection('contributions').onSnapshot(snapshot => {
+                onSnapshot(collection(firestore, 'contributions'), snapshot => { // Modular: collection(firestore, 'collection')
                     let total = 0;
                     snapshot.forEach(doc => total += doc.data().amount || 0);
                     document.getElementById('total-contributions').textContent = `Ksh ${total.toFixed(2)}`;
@@ -539,7 +545,7 @@
                     });
                 });
 
-                firestore.collection('loans').onSnapshot(snapshot => {
+                onSnapshot(collection(firestore, 'loans'), snapshot => { // Modular: collection(firestore, 'collection')
                     let totalIssued = 0;
                     let totalRepaid = 0;
                     snapshot.forEach(doc => {
@@ -584,13 +590,13 @@
                 });
 
                 // Implement similar onSnapshot listeners for other dashboard counts
-                firestore.collection('meetings').onSnapshot(snapshot => {
+                onSnapshot(collection(firestore, 'meetings'), snapshot => { // Modular: collection(firestore, 'collection')
                     document.getElementById('meetings-scheduled').textContent = snapshot.size;
                 });
-                firestore.collection('fines').onSnapshot(snapshot => {
+                onSnapshot(collection(firestore, 'fines'), snapshot => { // Modular: collection(firestore, 'collection')
                     document.getElementById('fines-issued').textContent = snapshot.size;
                 });
-                firestore.collection('investments').onSnapshot(snapshot => {
+                onSnapshot(collection(firestore, 'investments'), snapshot => { // Modular: collection(firestore, 'collection')
                     document.getElementById('investment-projects').textContent = snapshot.size;
                 });
 
@@ -686,7 +692,7 @@
                 };
 
                 // Real-time listener for members
-                firestore.collection('members').onSnapshot(snapshot => {
+                onSnapshot(collection(firestore, 'members'), snapshot => { // Modular: collection(firestore, 'collection')
                     allMembersData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
                     renderMembersTable(allMembersData);
                 });
@@ -727,13 +733,14 @@
                     memberFormModal.style.display = 'none';
                 });
 
-                membersList.addEventListener('click', (e) => {
+                membersList.addEventListener('click', async (e) => { // Added async for getDoc
                     // Edit Member
                     if (e.target.classList.contains('edit-member-btn')) {
                         const memberId = e.target.dataset.id;
-                        firestore.collection('members').doc(memberId).get().then(doc => {
-                            const member = doc.data();
-                            document.getElementById('member-id').value = doc.id;
+                        const docSnapshot = await getDoc(doc(firestore, 'members', memberId)); // Modular: doc(firestore, 'collection', id) and getDoc()
+                        if (docSnapshot.exists()) {
+                            const member = docSnapshot.data();
+                            document.getElementById('member-id').value = docSnapshot.id;
                             document.getElementById('member-name').value = member.name;
                             document.getElementById('member-email').value = member.email;
                             document.getElementById('member-status').value = member.status;
@@ -745,14 +752,14 @@
                                 profilePicElement.style.display = 'none';
                             }
                             memberFormModal.style.display = 'flex';
-                        });
+                        }
                     }
                     // Approve/Deactivate Member
                     if (e.target.dataset.action === 'approve' || e.target.dataset.action === 'deactivate') {
                         const memberId = e.target.dataset.id;
                         const newStatus = e.target.dataset.action === 'approve' ? 'active' : 'deactivated';
                         showConfirmationModal(`Are you sure you want to ${newStatus} this member?`, async () => {
-                            await firestore.collection('members').doc(memberId).update({ status: newStatus });
+                            await updateDoc(doc(firestore, 'members', memberId), { status: newStatus }); // Modular: updateDoc(doc(...), ...)
                             // Re-render handled by onSnapshot
                         });
                     }
@@ -760,7 +767,7 @@
                     if (e.target.classList.contains('delete-member-btn')) {
                         const memberId = e.target.dataset.id;
                         showConfirmationModal('Are you sure you want to delete this member permanently?', async () => {
-                            await firestore.collection('members').doc(memberId).delete();
+                            await deleteDoc(doc(firestore, 'members', memberId)); // Modular: deleteDoc(doc(...))
                             // Re-render handled by onSnapshot
                         });
                     }
@@ -777,17 +784,18 @@
                     let profilePicUrl = document.getElementById('current-profile-pic').src; // Keep existing if no new file
 
                     if (profilePicFile) {
-                        const storageRef = storage.ref(`profile_pictures/${memberId || Date.now()}-${profilePicFile.name}`);
-                        await storageRef.put(profilePicFile);
-                        profilePicUrl = await storageRef.getDownloadURL();
+                        const storageRefPath = `profile_pictures/${memberId || Date.now()}-${profilePicFile.name}`;
+                        const fileRef = ref(storage, storageRefPath); // Modular: ref(storage, path)
+                        await uploadBytes(fileRef, profilePicFile); // Modular: uploadBytes(ref, file)
+                        profilePicUrl = await getDownloadURL(fileRef); // Modular: getDownloadURL(ref)
                     }
 
                     const memberData = { name, email, status, profilePicUrl };
 
                     if (memberId) {
-                        await firestore.collection('members').doc(memberId).update(memberData);
+                        await updateDoc(doc(firestore, 'members', memberId), memberData); // Modular: updateDoc(doc(...), data)
                     } else {
-                        await firestore.collection('members').add(memberData);
+                        await addDoc(collection(firestore, 'members'), memberData); // Modular: addDoc(collection(...), data)
                     }
                     memberFormModal.style.display = 'none';
                 });
@@ -817,7 +825,7 @@
                     }
                     showConfirmationModal(`Approve ${selectedIds.length} members?`, async () => {
                         for (const id of selectedIds) {
-                            await firestore.collection('members').doc(id).update({ status: 'active' });
+                            await updateDoc(doc(firestore, 'members', id), { status: 'active' }); // Modular: updateDoc(doc(...), data)
                         }
                         // Re-render handled by onSnapshot
                     });
@@ -831,7 +839,7 @@
                     }
                     showConfirmationModal(`Deactivate ${selectedIds.length} members?`, async () => {
                         for (const id of selectedIds) {
-                            await firestore.collection('members').doc(id).update({ status: 'deactivated' });
+                            await updateDoc(doc(firestore, 'members', id), { status: 'deactivated' }); // Modular: updateDoc(doc(...), data)
                         }
                         // Re-render handled by onSnapshot
                     });
@@ -899,7 +907,7 @@
                 let membersMap = {}; // To store member names by ID
 
                 // Populate member dropdown
-                firestore.collection('members').get().then(snapshot => {
+                getDocs(collection(firestore, 'members')).then(snapshot => { // Modular: getDocs(collection(...))
                     snapshot.forEach(doc => {
                         membersMap[doc.id] = doc.data().name;
                         const option = document.createElement('option');
@@ -928,7 +936,7 @@
                     });
                 };
 
-                firestore.collection('contributions').onSnapshot(snapshot => {
+                onSnapshot(collection(firestore, 'contributions'), snapshot => { // Modular: onSnapshot(collection(...))
                     allContributionsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
                     renderContributionsTable(allContributionsData);
                 });
@@ -972,19 +980,21 @@
                 contributionsList.addEventListener('click', async (e) => {
                     if (e.target.classList.contains('edit-contribution-btn')) {
                         const contributionId = e.target.dataset.id;
-                        const doc = await firestore.collection('contributions').doc(contributionId).get();
-                        const contribution = doc.data();
-                        document.getElementById('contribution-id').value = doc.id;
-                        document.getElementById('contribution-member-id').value = contribution.memberId;
-                        document.getElementById('contribution-amount').value = contribution.amount;
-                        document.getElementById('contribution-date').value = contribution.date ? new Date(contribution.date.seconds * 1000).toISOString().split('T')[0] : '';
-                        document.getElementById('contribution-description').value = contribution.description || '';
-                        contributionFormModal.style.display = 'flex';
+                        const docSnapshot = await getDoc(doc(firestore, 'contributions', contributionId)); // Modular: getDoc(doc(...))
+                        if (docSnapshot.exists()) {
+                            const contribution = docSnapshot.data();
+                            document.getElementById('contribution-id').value = docSnapshot.id;
+                            document.getElementById('contribution-member-id').value = contribution.memberId;
+                            document.getElementById('contribution-amount').value = contribution.amount;
+                            document.getElementById('contribution-date').value = contribution.date ? new Date(contribution.date.seconds * 1000).toISOString().split('T')[0] : '';
+                            document.getElementById('contribution-description').value = contribution.description || '';
+                            contributionFormModal.style.display = 'flex';
+                        }
                     }
                     if (e.target.classList.contains('delete-contribution-btn')) {
                         const contributionId = e.target.dataset.id;
                         showConfirmationModal('Are you sure you want to delete this contribution?', async () => {
-                            await firestore.collection('contributions').doc(contributionId).delete();
+                            await deleteDoc(doc(firestore, 'contributions', contributionId)); // Modular: deleteDoc(doc(...))
                         });
                     }
                 });
@@ -1000,14 +1010,14 @@
                     const contributionData = {
                         memberId: memberId,
                         amount: amount,
-                        date: firebase.firestore.Timestamp.fromDate(date),
+                        date: new Date(date), // Firestore automatically converts Date objects to Timestamps
                         description: description
                     };
 
                     if (contributionId) {
-                        await firestore.collection('contributions').doc(contributionId).update(contributionData);
+                        await updateDoc(doc(firestore, 'contributions', contributionId), contributionData); // Modular: updateDoc(doc(...), data)
                     } else {
-                        await firestore.collection('contributions').add(contributionData);
+                        await addDoc(collection(firestore, 'contributions'), contributionData); // Modular: addDoc(collection(...), data)
                     }
                     contributionFormModal.style.display = 'none';
                 });
@@ -1120,7 +1130,7 @@
                 let membersMap = {};
 
                 // Populate member dropdown
-                firestore.collection('members').get().then(snapshot => {
+                getDocs(collection(firestore, 'members')).then(snapshot => { // Modular: getDocs(collection(...))
                     snapshot.forEach(doc => {
                         membersMap[doc.id] = doc.data().name;
                         const option = document.createElement('option');
@@ -1155,7 +1165,7 @@
                     });
                 };
 
-                firestore.collection('loans').onSnapshot(snapshot => {
+                onSnapshot(collection(firestore, 'loans'), snapshot => { // Modular: onSnapshot(collection(...))
                     allLoansData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
                     renderLoansTable(allLoansData);
                 });
@@ -1195,29 +1205,33 @@
                 loansList.addEventListener('click', async (e) => {
                     if (e.target.classList.contains('edit-loan-btn')) {
                         const loanId = e.target.dataset.id;
-                        const doc = await firestore.collection('loans').doc(loanId).get();
-                        const loan = doc.data();
-                        document.getElementById('loan-id').value = doc.id;
-                        document.getElementById('loan-member-id').value = loan.memberId;
-                        document.getElementById('loan-amount').value = loan.amount;
-                        document.getElementById('loan-interest-rate').value = loan.interestRate;
-                        document.getElementById('loan-due-date').value = loan.dueDate ? new Date(loan.dueDate.seconds * 1000).toISOString().split('T')[0] : '';
-                        document.getElementById('loan-status').value = loan.status;
-                        document.getElementById('loan-repaid-amount').value = loan.repaidAmount || 0;
-                        loanFormModal.style.display = 'flex';
+                        const docSnapshot = await getDoc(doc(firestore, 'loans', loanId)); // Modular: getDoc(doc(...))
+                        if (docSnapshot.exists()) {
+                            const loan = docSnapshot.data();
+                            document.getElementById('loan-id').value = docSnapshot.id;
+                            document.getElementById('loan-member-id').value = loan.memberId;
+                            document.getElementById('loan-amount').value = loan.amount;
+                            document.getElementById('loan-interest-rate').value = loan.interestRate;
+                            document.getElementById('loan-due-date').value = loan.dueDate ? new Date(loan.dueDate.seconds * 1000).toISOString().split('T')[0] : '';
+                            document.getElementById('loan-status').value = loan.status;
+                            document.getElementById('loan-repaid-amount').value = loan.repaidAmount || 0;
+                            loanFormModal.style.display = 'flex';
+                        }
                     }
                     if (e.target.dataset.action === 'mark-repaid') {
                         const loanId = e.target.dataset.id;
                         showConfirmationModal('Mark this loan as fully repaid?', async () => {
-                            const doc = await firestore.collection('loans').doc(loanId).get();
-                            const loan = doc.data();
-                            await firestore.collection('loans').doc(loanId).update({ status: 'repaid', repaidAmount: loan.amount * (1 + loan.interestRate / 100) });
+                            const docSnapshot = await getDoc(doc(firestore, 'loans', loanId)); // Modular: getDoc(doc(...))
+                            if (docSnapshot.exists()) {
+                                const loan = docSnapshot.data();
+                                await updateDoc(doc(firestore, 'loans', loanId), { status: 'repaid', repaidAmount: loan.amount * (1 + loan.interestRate / 100) }); // Modular: updateDoc(doc(...), data)
+                            }
                         });
                     }
                     if (e.target.classList.contains('delete-loan-btn')) {
                         const loanId = e.target.dataset.id;
                         showConfirmationModal('Are you sure you want to delete this loan record?', async () => {
-                            await firestore.collection('loans').doc(loanId).delete();
+                            await deleteDoc(doc(firestore, 'loans', loanId)); // Modular: deleteDoc(doc(...))
                         });
                     }
                 });
@@ -1236,15 +1250,15 @@
                         memberId: memberId,
                         amount: amount,
                         interestRate: interestRate,
-                        dueDate: firebase.firestore.Timestamp.fromDate(dueDate),
+                        dueDate: new Date(dueDate), // Firestore automatically converts Date objects to Timestamps
                         status: status,
                         repaidAmount: repaidAmount
                     };
 
                     if (loanId) {
-                        await firestore.collection('loans').doc(loanId).update(loanData);
+                        await updateDoc(doc(firestore, 'loans', loanId), loanData); // Modular: updateDoc(doc(...), data)
                     } else {
-                        await firestore.collection('loans').add(loanData);
+                        await addDoc(collection(firestore, 'loans'), loanData); // Modular: addDoc(collection(...), data)
                     }
                     loanFormModal.style.display = 'none';
                 });
@@ -1360,7 +1374,7 @@
                     });
                 };
 
-                firestore.collection('meetings').onSnapshot(snapshot => {
+                onSnapshot(collection(firestore, 'meetings'), snapshot => { // Modular: onSnapshot(collection(...))
                     allMeetingsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
                     renderMeetingsTable(allMeetingsData);
                 });
@@ -1390,21 +1404,23 @@
                 meetingsList.addEventListener('click', async (e) => {
                     if (e.target.classList.contains('edit-meeting-btn')) {
                         const meetingId = e.target.dataset.id;
-                        const doc = await firestore.collection('meetings').doc(meetingId).get();
-                        const meeting = doc.data();
-                        document.getElementById('meeting-id').value = doc.id;
-                        document.getElementById('meeting-title').value = meeting.title;
-                        document.getElementById('meeting-date').value = meeting.date ? new Date(meeting.date.seconds * 1000).toISOString().split('T')[0] : '';
-                        document.getElementById('meeting-time').value = meeting.time || '';
-                        document.getElementById('meeting-location').value = meeting.location || '';
-                        document.getElementById('meeting-description').value = meeting.description || '';
-                        document.getElementById('meeting-type').value = meeting.type || 'meeting';
-                        meetingFormModal.style.display = 'flex';
+                        const docSnapshot = await getDoc(doc(firestore, 'meetings', meetingId)); // Modular: getDoc(doc(...))
+                        if (docSnapshot.exists()) {
+                            const meeting = docSnapshot.data();
+                            document.getElementById('meeting-id').value = docSnapshot.id;
+                            document.getElementById('meeting-title').value = meeting.title;
+                            document.getElementById('meeting-date').value = meeting.date ? new Date(meeting.date.seconds * 1000).toISOString().split('T')[0] : '';
+                            document.getElementById('meeting-time').value = meeting.time || '';
+                            document.getElementById('meeting-location').value = meeting.location || '';
+                            document.getElementById('meeting-description').value = meeting.description || '';
+                            document.getElementById('meeting-type').value = meeting.type || 'meeting';
+                            meetingFormModal.style.display = 'flex';
+                        }
                     }
                     if (e.target.classList.contains('delete-meeting-btn')) {
                         const meetingId = e.target.dataset.id;
                         showConfirmationModal('Are you sure you want to delete this meeting/notice?', async () => {
-                            await firestore.collection('meetings').doc(meetingId).delete();
+                            await deleteDoc(doc(firestore, 'meetings', meetingId)); // Modular: deleteDoc(doc(...))
                         });
                     }
                 });
@@ -1421,7 +1437,7 @@
 
                     const meetingData = {
                         title: title,
-                        date: firebase.firestore.Timestamp.fromDate(date),
+                        date: new Date(date), // Firestore automatically converts Date objects to Timestamps
                         time: time,
                         location: location,
                         description: description,
@@ -1429,9 +1445,9 @@
                     };
 
                     if (meetingId) {
-                        await firestore.collection('meetings').doc(meetingId).update(meetingData);
+                        await updateDoc(doc(firestore, 'meetings', meetingId), meetingData); // Modular: updateDoc(doc(...), data)
                     } else {
-                        await firestore.collection('meetings').add(meetingData);
+                        await addDoc(collection(firestore, 'meetings'), meetingData); // Modular: addDoc(collection(...), data)
                     }
                     meetingFormModal.style.display = 'none';
                 });
@@ -1535,7 +1551,7 @@
                 let membersMap = {};
 
                 // Populate member dropdown
-                firestore.collection('members').get().then(snapshot => {
+                getDocs(collection(firestore, 'members')).then(snapshot => { // Modular: getDocs(collection(...))
                     snapshot.forEach(doc => {
                         membersMap[doc.id] = doc.data().name;
                         const option = document.createElement('option');
@@ -1567,7 +1583,7 @@
                     });
                 };
 
-                firestore.collection('fines').onSnapshot(snapshot => {
+                onSnapshot(collection(firestore, 'fines'), snapshot => { // Modular: onSnapshot(collection(...))
                     allFinesData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
                     renderFinesTable(allFinesData);
                 });
@@ -1607,26 +1623,28 @@
                 finesList.addEventListener('click', async (e) => {
                     if (e.target.classList.contains('edit-fine-btn')) {
                         const fineId = e.target.dataset.id;
-                        const doc = await firestore.collection('fines').doc(fineId).get();
-                        const fine = doc.data();
-                        document.getElementById('fine-id').value = doc.id;
-                        document.getElementById('fine-member-id').value = fine.memberId;
-                        document.getElementById('fine-reason').value = fine.reason;
-                        document.getElementById('fine-amount').value = fine.amount;
-                        document.getElementById('fine-date-issued').value = fine.dateIssued ? new Date(fine.dateIssued.seconds * 1000).toISOString().split('T')[0] : '';
-                        document.getElementById('fine-status').value = fine.status;
-                        fineFormModal.style.display = 'flex';
+                        const docSnapshot = await getDoc(doc(firestore, 'fines', fineId)); // Modular: getDoc(doc(...))
+                        if (docSnapshot.exists()) {
+                            const fine = docSnapshot.data();
+                            document.getElementById('fine-id').value = docSnapshot.id;
+                            document.getElementById('fine-member-id').value = fine.memberId;
+                            document.getElementById('fine-reason').value = fine.reason;
+                            document.getElementById('fine-amount').value = fine.amount;
+                            document.getElementById('fine-date-issued').value = fine.dateIssued ? new Date(fine.dateIssued.seconds * 1000).toISOString().split('T')[0] : '';
+                            document.getElementById('fine-status').value = fine.status;
+                            fineFormModal.style.display = 'flex';
+                        }
                     }
                     if (e.target.dataset.action === 'mark-paid') {
                         const fineId = e.target.dataset.id;
                         showConfirmationModal('Mark this fine as paid?', async () => {
-                            await firestore.collection('fines').doc(fineId).update({ status: 'paid' });
+                            await updateDoc(doc(firestore, 'fines', fineId), { status: 'paid' }); // Modular: updateDoc(doc(...), data)
                         });
                     }
                     if (e.target.classList.contains('delete-fine-btn')) {
                         const fineId = e.target.dataset.id;
                         showConfirmationModal('Are you sure you want to delete this fine record?', async () => {
-                            await firestore.collection('fines').doc(fineId).delete();
+                            await deleteDoc(doc(firestore, 'fines', fineId)); // Modular: deleteDoc(doc(...))
                         });
                     }
                 });
@@ -1644,14 +1662,14 @@
                         memberId: memberId,
                         reason: reason,
                         amount: amount,
-                        dateIssued: firebase.firestore.Timestamp.fromDate(dateIssued),
+                        dateIssued: new Date(dateIssued), // Firestore automatically converts Date objects to Timestamps
                         status: status
                     };
 
                     if (fineId) {
-                        await firestore.collection('fines').doc(fineId).update(fineData);
+                        await updateDoc(doc(firestore, 'fines', fineId), fineData); // Modular: updateDoc(doc(...), data)
                     } else {
-                        await firestore.collection('fines').add(fineData);
+                        await addDoc(collection(firestore, 'fines'), fineData); // Modular: addDoc(collection(...), data)
                     }
                     fineFormModal.style.display = 'none';
                 });
@@ -1681,7 +1699,7 @@
                     }
                     showConfirmationModal(`Mark ${selectedIds.length} fines as paid?`, async () => {
                         for (const id of selectedIds) {
-                            await firestore.collection('fines').doc(id).update({ status: 'paid' });
+                            await updateDoc(doc(firestore, 'fines', id), { status: 'paid' }); // Modular: updateDoc(doc(...), data)
                         }
                     });
                 });
@@ -1802,7 +1820,7 @@
                     });
                 };
 
-                firestore.collection('investments').onSnapshot(snapshot => {
+                onSnapshot(collection(firestore, 'investments'), snapshot => { // Modular: onSnapshot(collection(...))
                     allInvestmentsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
                     renderInvestmentsTable(allInvestmentsData);
                 });
@@ -1842,26 +1860,28 @@
                 investmentsList.addEventListener('click', async (e) => {
                     if (e.target.classList.contains('edit-investment-btn')) {
                         const investmentId = e.target.dataset.id;
-                        const doc = await firestore.collection('investments').doc(investmentId).get();
-                        const investment = doc.data();
-                        document.getElementById('investment-id').value = doc.id;
-                        document.getElementById('investment-project-name').value = investment.projectName;
-                        document.getElementById('investment-description').value = investment.description || '';
-                        document.getElementById('investment-target-amount').value = investment.targetAmount;
-                        document.getElementById('investment-pledged-amount').value = investment.pledgedAmount || 0;
-                        document.getElementById('investment-status').value = investment.status;
-                        investmentFormModal.style.display = 'flex';
+                        const docSnapshot = await getDoc(doc(firestore, 'investments', investmentId)); // Modular: getDoc(doc(...))
+                        if (docSnapshot.exists()) {
+                            const investment = docSnapshot.data();
+                            document.getElementById('investment-id').value = docSnapshot.id;
+                            document.getElementById('investment-project-name').value = investment.projectName;
+                            document.getElementById('investment-description').value = investment.description || '';
+                            document.getElementById('investment-target-amount').value = investment.targetAmount;
+                            document.getElementById('investment-pledged-amount').value = investment.pledgedAmount || 0;
+                            document.getElementById('investment-status').value = investment.status;
+                            investmentFormModal.style.display = 'flex';
+                        }
                     }
                     if (e.target.dataset.action === 'mark-completed') {
                         const investmentId = e.target.dataset.id;
                         showConfirmationModal('Mark this investment as completed?', async () => {
-                            await firestore.collection('investments').doc(investmentId).update({ status: 'completed' });
+                            await updateDoc(doc(firestore, 'investments', investmentId), { status: 'completed' }); // Modular: updateDoc(doc(...), data)
                         });
                     }
                     if (e.target.classList.contains('delete-investment-btn')) {
                         const investmentId = e.target.dataset.id;
                         showConfirmationModal('Are you sure you want to delete this investment?', async () => {
-                            await firestore.collection('investments').doc(investmentId).delete();
+                            await deleteDoc(doc(firestore, 'investments', investmentId)); // Modular: deleteDoc(doc(...))
                         });
                     }
                 });
@@ -1884,9 +1904,9 @@
                     };
 
                     if (investmentId) {
-                        await firestore.collection('investments').doc(investmentId).update(investmentData);
+                        await updateDoc(doc(firestore, 'investments', investmentId), investmentData); // Modular: updateDoc(doc(...), data)
                     } else {
-                        await firestore.collection('investments').add(investmentData);
+                        await addDoc(collection(firestore, 'investments'), investmentData); // Modular: addDoc(collection(...), data)
                     }
                     investmentFormModal.style.display = 'none';
                 });
@@ -1995,7 +2015,7 @@
                     });
                 };
 
-                firestore.collection('polls').onSnapshot(snapshot => {
+                onSnapshot(collection(firestore, 'polls'), snapshot => { // Modular: onSnapshot(collection(...))
                     allPollsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
                     renderPollsTable(allPollsData);
                 });
@@ -2024,25 +2044,27 @@
                 pollsList.addEventListener('click', async (e) => {
                     if (e.target.classList.contains('edit-poll-btn')) {
                         const pollId = e.target.dataset.id;
-                        const doc = await firestore.collection('polls').doc(pollId).get();
-                        const poll = doc.data();
-                        document.getElementById('poll-id').value = doc.id;
-                        document.getElementById('poll-title').value = poll.title;
-                        document.getElementById('poll-description').value = poll.description || '';
-                        document.getElementById('poll-options').value = poll.options.join('\n') || '';
-                        document.getElementById('poll-status').value = poll.status;
-                        pollFormModal.style.display = 'flex';
+                        const docSnapshot = await getDoc(doc(firestore, 'polls', pollId)); // Modular: getDoc(doc(...))
+                        if (docSnapshot.exists()) {
+                            const poll = docSnapshot.data();
+                            document.getElementById('poll-id').value = docSnapshot.id;
+                            document.getElementById('poll-title').value = poll.title;
+                            document.getElementById('poll-description').value = poll.description || '';
+                            document.getElementById('poll-options').value = poll.options.join('\n') || '';
+                            document.getElementById('poll-status').value = poll.status;
+                            pollFormModal.style.display = 'flex';
+                        }
                     }
                     if (e.target.dataset.action === 'close-poll') {
                         const pollId = e.target.dataset.id;
                         showConfirmationModal('Are you sure you want to close this poll?', async () => {
-                            await firestore.collection('polls').doc(pollId).update({ status: 'closed' });
+                            await updateDoc(doc(firestore, 'polls', pollId), { status: 'closed' }); // Modular: updateDoc(doc(...), data)
                         });
                     }
                     if (e.target.dataset.action === 'view-results') {
                         const pollId = e.target.dataset.id;
-                        const doc = await firestore.collection('polls').doc(pollId).get();
-                        const poll = doc.data();
+                        const docSnapshot = await getDoc(doc(firestore, 'polls', pollId)); // Modular: getDoc(doc(...))
+                        const poll = docSnapshot.data();
                         document.getElementById('poll-results-title').textContent = `Results for: ${poll.title}`;
                         
                         const pollResultsChartCtx = document.getElementById('poll-results-chart').getContext('2d');
@@ -2091,7 +2113,7 @@
                     if (e.target.classList.contains('delete-poll-btn')) {
                         const pollId = e.target.dataset.id;
                         showConfirmationModal('Are you sure you want to delete this poll?', async () => {
-                            await firestore.collection('polls').doc(pollId).delete();
+                            await deleteDoc(doc(firestore, 'polls', pollId)); // Modular: deleteDoc(doc(...))
                         });
                     }
                 });
@@ -2116,7 +2138,8 @@
                         });
                     } else {
                         // For existing polls, fetch current votes and update options
-                        const existingPoll = (await firestore.collection('polls').doc(pollId).get()).data();
+                        const existingPollDoc = await getDoc(doc(firestore, 'polls', pollId)); // Modular: getDoc(doc(...))
+                        const existingPoll = existingPollDoc.data();
                         if (existingPoll && existingPoll.votes) {
                             // Preserve existing votes for options that still exist
                             for (const opt of options) {
@@ -2124,7 +2147,6 @@
                             }
                         }
                     }
-
 
                     const pollData = {
                         title: title,
@@ -2135,9 +2157,9 @@
                     };
 
                     if (pollId) {
-                        await firestore.collection('polls').doc(pollId).update(pollData);
+                        await updateDoc(doc(firestore, 'polls', pollId), pollData); // Modular: updateDoc(doc(...), data)
                     } else {
-                        await firestore.collection('polls').add(pollData);
+                        await addDoc(collection(firestore, 'polls'), pollData); // Modular: addDoc(collection(...), data)
                     }
                     pollFormModal.style.display = 'none';
                 });
@@ -2225,7 +2247,7 @@
                     });
                 };
 
-                firestore.collection('documents').onSnapshot(snapshot => {
+                onSnapshot(collection(firestore, 'documents'), snapshot => { // Modular: onSnapshot(collection(...))
                     allDocumentsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
                     renderDocumentsTable(allDocumentsData);
                 });
@@ -2262,11 +2284,11 @@
                     }
 
                     const filePath = `documents/${Date.now()}_${file.name}`;
-                    const storageRef = storage.ref(filePath);
+                    const fileRef = ref(storage, filePath); // Modular: ref(storage, path)
                     
                     try {
-                        await storageRef.put(file);
-                        const downloadUrl = await storageRef.getDownloadURL();
+                        await uploadBytes(fileRef, file); // Modular: uploadBytes(ref, file)
+                        const downloadUrl = await getDownloadURL(fileRef); // Modular: getDownloadURL(ref)
 
                         const documentData = {
                             name: docName,
@@ -2274,10 +2296,10 @@
                             filePath: filePath, // Store path to delete later
                             downloadUrl: downloadUrl,
                             uploadedBy: auth.currentUser ? auth.currentUser.email : 'Admin',
-                            uploadDate: firebase.firestore.FieldValue.serverTimestamp()
+                            uploadDate: serverTimestamp() // Modular: serverTimestamp()
                         };
 
-                        await firestore.collection('documents').add(documentData);
+                        await addDoc(collection(firestore, 'documents'), documentData); // Modular: addDoc(collection(...), data)
                         documentFormModal.style.display = 'none';
                     } catch (error) {
                         console.error("Error uploading file:", error);
@@ -2294,10 +2316,11 @@
                             try {
                                 // Delete from Storage
                                 if (filePath) {
-                                    await storage.ref(filePath).delete();
+                                    const fileRefToDelete = ref(storage, filePath); // Modular: ref(storage, path)
+                                    await deleteObject(fileRefToDelete); // Modular: deleteObject(ref)
                                 }
                                 // Delete from Firestore
-                                await firestore.collection('documents').doc(documentId).delete();
+                                await deleteDoc(doc(firestore, 'documents', documentId)); // Modular: deleteDoc(doc(...))
                             } catch (error) {
                                 console.error("Error deleting document:", error);
                                 alert("Failed to delete document: " + error.message);
@@ -2377,7 +2400,7 @@
                 let allMembers = []; // Store all members for attendance marking
 
                 // Fetch all members once for the attendance marking feature
-                firestore.collection('members').onSnapshot(snapshot => {
+                onSnapshot(collection(firestore, 'members'), snapshot => { // Modular: onSnapshot(collection(...))
                     allMembers = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
                 });
 
@@ -2398,7 +2421,7 @@
                     });
                 };
 
-                firestore.collection('attendance').onSnapshot(snapshot => {
+                onSnapshot(collection(firestore, 'attendance'), snapshot => { // Modular: onSnapshot(collection(...))
                     allAttendanceData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
                     renderAttendanceTable(allAttendanceData);
                 });
@@ -2464,10 +2487,10 @@
                     for (const memberCheckbox of checkedMembers) {
                         const memberId = memberCheckbox.value;
                         const memberName = memberCheckbox.dataset.name;
-                        await firestore.collection('attendance').add({
+                        await addDoc(collection(firestore, 'attendance'), { // Modular: addDoc(collection(...), data)
                             memberId: memberId,
                             memberName: memberName,
-                            date: firebase.firestore.Timestamp.fromDate(recordDate),
+                            date: new Date(recordDate), // Firestore automatically converts Date objects to Timestamps
                             status: 'present'
                         });
                     }
@@ -2484,7 +2507,7 @@
                     if (e.target.classList.contains('delete-attendance-btn')) {
                         const recordId = e.target.dataset.id;
                         showConfirmationModal('Are you sure you want to delete this attendance record?', async () => {
-                            await firestore.collection('attendance').doc(recordId).delete();
+                            await deleteDoc(doc(firestore, 'attendance', recordId)); // Modular: deleteDoc(doc(...))
                         });
                     }
                 });
@@ -2572,7 +2595,7 @@
                 let allMembers = [];
 
                 // Fetch members to populate recipient list
-                firestore.collection('members').get().then(snapshot => {
+                getDocs(collection(firestore, 'members')).then(snapshot => { // Modular: getDocs(collection(...))
                     allMembers = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
                     renderMemberCheckboxes();
                 });
@@ -2605,7 +2628,7 @@
                     });
                 };
 
-                firestore.collection('notifications').onSnapshot(snapshot => {
+                onSnapshot(collection(firestore, 'notifications'), snapshot => { // Modular: onSnapshot(collection(...))
                     allNotificationsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
                     renderNotificationsTable(allNotificationsData);
                 });
@@ -2655,13 +2678,13 @@
                         subject: subject,
                         message: message,
                         recipients: recipients,
-                        timestamp: firebase.firestore.FieldValue.serverTimestamp()
+                        timestamp: serverTimestamp() // Modular: serverTimestamp()
                     };
 
                     // In a real application, you'd trigger a Cloud Function here
                     // to send actual emails/SMS using a service like SendGrid or Twilio.
                     // For this HTML-only dashboard, we'll just store it in Firestore.
-                    await firestore.collection('notifications').add(notificationData);
+                    await addDoc(collection(firestore, 'notifications'), notificationData); // Modular: addDoc(collection(...), data)
                     alert('Notification saved (actual sending would be done via backend).');
                     notificationFormModal.style.display = 'none';
                 });
@@ -2671,7 +2694,7 @@
                     if (e.target.classList.contains('delete-notification-btn')) {
                         const notificationId = e.target.dataset.id;
                         showConfirmationModal('Are you sure you want to delete this notification record?', async () => {
-                            await firestore.collection('notifications').doc(notificationId).delete();
+                            await deleteDoc(doc(firestore, 'notifications', notificationId)); // Modular: deleteDoc(doc(...))
                         });
                     }
                 });
@@ -2710,9 +2733,9 @@
                 
                 // Financial Statements
                 document.getElementById('generate-financial-report-btn').addEventListener('click', async () => {
-                    const contributions = (await firestore.collection('contributions').get()).docs.map(doc => doc.data());
-                    const loans = (await firestore.collection('loans').get()).docs.map(doc => doc.data());
-                    const fines = (await firestore.collection('fines').get()).docs.map(doc => doc.data());
+                    const contributions = (await getDocs(collection(firestore, 'contributions'))).docs.map(doc => doc.data()); // Modular: getDocs(collection(...))
+                    const loans = (await getDocs(collection(firestore, 'loans'))).docs.map(doc => doc.data()); // Modular: getDocs(collection(...))
+                    const fines = (await getDocs(collection(firestore, 'fines'))).docs.map(doc => doc.data()); // Modular: getDocs(collection(...))
                     
                     let totalContributions = contributions.reduce((sum, c) => sum + c.amount, 0);
                     let totalLoansIssued = loans.reduce((sum, l) => sum + l.amount, 0);
@@ -2734,8 +2757,8 @@
 
                 // Contributions Summary
                 document.getElementById('generate-contributions-summary-btn').addEventListener('click', async () => {
-                    const contributionsSnapshot = await firestore.collection('contributions').get();
-                    const membersSnapshot = await firestore.collection('members').get();
+                    const contributionsSnapshot = await getDocs(collection(firestore, 'contributions')); // Modular: getDocs(collection(...))
+                    const membersSnapshot = await getDocs(collection(firestore, 'members')); // Modular: getDocs(collection(...))
                     const membersMap = {};
                     membersSnapshot.forEach(doc => membersMap[doc.id] = doc.data().name);
 
@@ -2753,8 +2776,8 @@
 
                 // Loan Report
                 document.getElementById('generate-loan-report-btn').addEventListener('click', async () => {
-                    const loansSnapshot = await firestore.collection('loans').get();
-                    const membersSnapshot = await firestore.collection('members').get();
+                    const loansSnapshot = await getDocs(collection(firestore, 'loans')); // Modular: getDocs(collection(...))
+                    const membersSnapshot = await getDocs(collection(firestore, 'members')); // Modular: getDocs(collection(...))
                     const membersMap = {};
                     membersSnapshot.forEach(doc => membersMap[doc.id] = doc.data().name);
 
@@ -2773,8 +2796,8 @@
 
                 // Fines Report
                 document.getElementById('generate-fines-report-btn').addEventListener('click', async () => {
-                    const finesSnapshot = await firestore.collection('fines').get();
-                    const membersSnapshot = await firestore.collection('members').get();
+                    const finesSnapshot = await getDocs(collection(firestore, 'fines')); // Modular: getDocs(collection(...))
+                    const membersSnapshot = await getDocs(collection(firestore, 'members')); // Modular: getDocs(collection(...))
                     const membersMap = {};
                     membersSnapshot.forEach(doc => membersMap[doc.id] = doc.data().name);
 
