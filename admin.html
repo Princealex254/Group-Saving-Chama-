@@ -330,6 +330,14 @@
         const firestore = getFirestore(app);
         const storage = getStorage(app);
 
+        // Helper to construct public collection paths
+        const getPublicCollectionPath = (collectionName) => `artifacts/${appId}/public/data/${collectionName}`;
+
+        // Helper to construct private (user-specific) collection paths
+        const getPrivateCollectionPath = (userId, collectionName) => `artifacts/${appId}/users/${userId}/${collectionName}`;
+
+        let currentUserId = null; // Variable to hold the authenticated user's ID
+
         document.addEventListener('DOMContentLoaded', () => {
             // DOM Elements
             const loginPage = document.getElementById('login-page');
@@ -343,6 +351,7 @@
             // Authentication State Listener
             onAuthStateChanged(auth, async (user) => { // Added async for getDoc inside onAuthStateChanged
                 if (user) {
+                    currentUserId = user.uid; // Set the current user ID upon authentication
                     // Check if the user is an admin
                     const adminRef = doc(firestore, "admins", user.email.toLowerCase()); // Modular: doc(firestore, collection, id)
                     const adminSnap = await getDoc(adminRef); // Modular: getDoc(docRef)
@@ -361,6 +370,7 @@
                         window.location.href = 'http://savingchama.princealex.pro/index.html'; // URL_UPDATE
                     }
                 } else {
+                    currentUserId = null; // Clear user ID on logout
                     // This block ensures the login page is shown if no user is authenticated
                     loginPage.style.display = 'block';
                     dashboardPage.style.display = 'none';
@@ -417,6 +427,12 @@
 
             // Dynamic Content Rendering Function
             function renderSection(sectionName) {
+                if (!currentUserId && sectionName !== 'dashboard-overview') {
+                    // Prevent rendering sections that require user ID if not authenticated
+                    console.warn("User not authenticated. Cannot render private data section:", sectionName);
+                    contentContainer.innerHTML = `<h2>Access Denied</h2><p>Please log in to view this section.</p>`;
+                    return;
+                }
                 contentContainer.innerHTML = ''; // Clear previous content
                 switch (sectionName) {
                     case 'dashboard-overview':
@@ -509,18 +525,21 @@
                     </div>`;
                 
                 // Fetch and display counts
-                onSnapshot(collection(firestore, 'members'), snapshot => { // Modular: collection(firestore, 'collection')
+                onSnapshot(collection(firestore, getPublicCollectionPath('members')), snapshot => { 
                     document.getElementById('total-members').textContent = snapshot.size;
                 });
-                onSnapshot(collection(firestore, 'contributions'), snapshot => { // Modular: collection(firestore, 'collection')
+                // When rendering Dashboard Overview, if we want to show aggregated contributions for ALL members,
+                // we should query a public/global collection, not a user-specific one.
+                // Assuming 'contributions' for dashboard overview refers to a public/global collection.
+                onSnapshot(collection(firestore, getPublicCollectionPath('contributions')), snapshot => { 
                     let total = 0;
                     snapshot.forEach(doc => total += doc.data().amount || 0);
                     document.getElementById('total-contributions').textContent = `Ksh ${total.toFixed(2)}`;
                     
                     // Chart.js for Contributions Trend (example data)
-                    const monthlyContributions = {}; // Aggregate contributions by month
+                    const monthlyContributions = {}; 
                     snapshot.forEach(doc => {
-                        const date = doc.data().date.toDate(); // Assuming date is a Firebase Timestamp
+                        const date = doc.data().date.toDate(); 
                         const monthYear = `${date.getFullYear()}-${date.getMonth() + 1}`;
                         monthlyContributions[monthYear] = (monthlyContributions[monthYear] || 0) + doc.data().amount;
                     });
@@ -563,13 +582,14 @@
                     });
                 });
 
-                onSnapshot(collection(firestore, 'loans'), snapshot => { // Modular: collection(firestore, 'collection')
+                // Assuming 'loans' for dashboard overview refers to a public/global collection.
+                onSnapshot(collection(firestore, getPublicCollectionPath('loans')), snapshot => { 
                     let totalIssued = 0;
                     let totalRepaid = 0;
                     snapshot.forEach(doc => {
                         const loan = doc.data();
                         totalIssued += loan.amount || 0;
-                        totalRepaid += loan.repaidAmount || 0; // Assuming a 'repaidAmount' field
+                        totalRepaid += loan.repaidAmount || 0; 
                     });
                     document.getElementById('total-loans-issued').textContent = `Ksh ${totalIssued.toFixed(2)}`;
                     
@@ -608,13 +628,13 @@
                 });
 
                 // Implement similar onSnapshot listeners for other dashboard counts
-                onSnapshot(collection(firestore, 'meetings'), snapshot => { // Modular: collection(firestore, 'collection')
+                onSnapshot(collection(firestore, getPublicCollectionPath('meetings')), snapshot => { 
                     document.getElementById('meetings-scheduled').textContent = snapshot.size;
                 });
-                onSnapshot(collection(firestore, 'fines'), snapshot => { // Modular: collection(firestore, 'collection')
+                onSnapshot(collection(firestore, getPublicCollectionPath('fines')), snapshot => { 
                     document.getElementById('fines-issued').textContent = snapshot.size;
                 });
-                onSnapshot(collection(firestore, 'investments'), snapshot => { // Modular: collection(firestore, 'collection')
+                onSnapshot(collection(firestore, getPublicCollectionPath('investments')), snapshot => { 
                     document.getElementById('investment-projects').textContent = snapshot.size;
                 });
 
@@ -687,7 +707,7 @@
                 const selectAllMembersCheckbox = document.getElementById('select-all-members');
                 const bulkApproveBtn = document.getElementById('bulk-approve-btn');
                 const bulkDeactivateBtn = document.getElementById('bulk-deactivate-btn');
-                let allMembersData = []; // Store fetched data for filtering/sorting
+                let allMembersData = []; 
 
                 // Render members table
                 const renderMembersTable = (membersToDisplay) => {
@@ -709,8 +729,9 @@
                     });
                 };
 
-                // Real-time listener for members
-                onSnapshot(collection(firestore, 'members'), snapshot => { // Modular: collection(firestore, 'collection')
+                // Real-time listener for members (now from public path)
+                // Members are public data, as they are managed by admin and available to all users.
+                onSnapshot(collection(firestore, getPublicCollectionPath('members')), snapshot => { 
                     allMembersData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
                     renderMembersTable(allMembersData);
                 });
@@ -734,7 +755,7 @@
                             if (a[sortBy] > b[sortBy]) return 0;
                             return 0;
                         });
-                        allMembersData = sortedMembers; // Update master data
+                        allMembersData = sortedMembers; 
                         renderMembersTable(allMembersData);
                     });
                 });
@@ -751,11 +772,11 @@
                     memberFormModal.style.display = 'none';
                 });
 
-                membersList.addEventListener('click', async (e) => { // Added async for getDoc
+                membersList.addEventListener('click', async (e) => { 
                     // Edit Member
                     if (e.target.classList.contains('edit-member-btn')) {
                         const memberId = e.target.dataset.id;
-                        const docSnapshot = await getDoc(doc(firestore, 'members', memberId)); // Modular: doc(firestore, 'collection', id) and getDoc()
+                        const docSnapshot = await getDoc(doc(firestore, getPublicCollectionPath('members'), memberId)); 
                         if (docSnapshot.exists()) {
                             const member = docSnapshot.data();
                             document.getElementById('member-id').value = docSnapshot.id;
@@ -777,7 +798,7 @@
                         const memberId = e.target.dataset.id;
                         const newStatus = e.target.dataset.action === 'approve' ? 'active' : 'deactivated';
                         showConfirmationModal(`Are you sure you want to ${newStatus} this member?`, async () => {
-                            await updateDoc(doc(firestore, 'members', memberId), { status: newStatus }); // Modular: updateDoc(doc(...), ...)
+                            await updateDoc(doc(firestore, getPublicCollectionPath('members'), memberId), { status: newStatus }); 
                             // Re-render handled by onSnapshot
                         });
                     }
@@ -785,7 +806,7 @@
                     if (e.target.classList.contains('delete-member-btn')) {
                         const memberId = e.target.dataset.id;
                         showConfirmationModal('Are you sure you want to delete this member permanently?', async () => {
-                            await deleteDoc(doc(firestore, 'members', memberId)); // Modular: deleteDoc(doc(...))
+                            await deleteDoc(doc(firestore, getPublicCollectionPath('members'), memberId)); 
                             // Re-render handled by onSnapshot
                         });
                     }
@@ -799,21 +820,34 @@
                     const status = document.getElementById('member-status').value;
                     const profilePicFile = document.getElementById('member-profile-pic').files[0];
                     
-                    let profilePicUrl = document.getElementById('current-profile-pic').src; // Keep existing if no new file
+                    let profilePicUrl = document.getElementById('current-profile-pic').src; 
 
                     if (profilePicFile) {
                         const storageRefPath = `profile_pictures/${memberId || Date.now()}-${profilePicFile.name}`;
-                        const fileRef = ref(storage, storageRefPath); // Modular: ref(storage, path)
-                        await uploadBytes(fileRef, profilePicFile); // Modular: uploadBytes(ref, file)
-                        profilePicUrl = await getDownloadURL(fileRef); // Modular: getDownloadURL(ref)
+                        const fileRef = ref(storage, fileRefPath); 
+                        await uploadBytes(fileRef, profilePicFile); 
+                        profilePicUrl = await getDownloadURL(fileRef); 
                     }
 
                     const memberData = { name, email, status, profilePicUrl };
 
                     if (memberId) {
-                        await updateDoc(doc(firestore, 'members', memberId), memberData); // Modular: updateDoc(doc(...), data)
+                        await updateDoc(doc(firestore, getPublicCollectionPath('members'), memberId), memberData); 
                     } else {
-                        await addDoc(collection(firestore, 'members'), memberData); // Modular: addDoc(collection(...), data)
+                        // When adding a new member from the admin dashboard, their profile should also be created
+                        // under their specific user profile path to synchronize.
+                        // For simplicity, we'll assume a new member might not have a userId yet, 
+                        // so we'll store them in the public 'members' collection, and then their specific
+                        // user_profile will be created when they sign up on the main page.
+                        // However, to align with user's provided structure, we will update the `user_profile` logic.
+                        // Assuming email is unique and can be used to derive user ID or is linked later.
+                        // For the purpose of this admin panel directly affecting a user's data,
+                        // we need to decide if new members added here get a dummy user_id or if they must first
+                        // register on the main site. For now, maintaining consistency by storing in public members.
+
+                        // If the intention is to create a *full* user profile from admin, a user ID is needed.
+                        // For now, we'll assume 'members' is the public-facing list of people in the Chama.
+                        await addDoc(collection(firestore, getPublicCollectionPath('members')), memberData); 
                     }
                     memberFormModal.style.display = 'none';
                 });
@@ -828,7 +862,7 @@
                 const getSelectedMemberIds = () => {
                     const selectedIds = [];
                     document.querySelectorAll('.member-checkbox:checked').forEach(checkbox => {
-                        if (checkbox.id !== 'select-all-members') { // Exclude the select-all checkbox
+                        if (checkbox.id !== 'select-all-members') { 
                             selectedIds.push(checkbox.dataset.id);
                         }
                     });
@@ -838,12 +872,12 @@
                 bulkApproveBtn.addEventListener('click', () => {
                     const selectedIds = getSelectedMemberIds();
                     if (selectedIds.length === 0) {
-                        alert('No members selected for bulk approval.'); // Use alert for simplicity, replace with custom modal if desired
+                        alert('No members selected for bulk approval.'); 
                         return;
                     }
                     showConfirmationModal(`Approve ${selectedIds.length} members?`, async () => {
                         for (const id of selectedIds) {
-                            await updateDoc(doc(firestore, 'members', id), { status: 'active' }); // Modular: updateDoc(doc(...), data)
+                            await updateDoc(doc(firestore, getPublicCollectionPath('members'), id), { status: 'active' }); 
                         }
                         // Re-render handled by onSnapshot
                     });
@@ -852,12 +886,12 @@
                 bulkDeactivateBtn.addEventListener('click', () => {
                     const selectedIds = getSelectedMemberIds();
                     if (selectedIds.length === 0) {
-                        alert('No members selected for bulk deactivation.'); // Use alert for simplicity, replace with custom modal if desired
+                        alert('No members selected for bulk deactivation.'); 
                         return;
                     }
                     showConfirmationModal(`Deactivate ${selectedIds.length} members?`, async () => {
                         for (const id of selectedIds) {
-                            await updateDoc(doc(firestore, 'members', id), { status: 'deactivated' }); // Modular: updateDoc(doc(...), data)
+                            await updateDoc(doc(firestore, getPublicCollectionPath('members'), id), { status: 'deactivated' }); 
                         }
                         // Re-render handled by onSnapshot
                     });
@@ -922,10 +956,10 @@
                 const cancelContributionFormBtn = document.getElementById('cancel-contribution-form');
                 const contributionMemberSelect = document.getElementById('contribution-member-id');
                 let allContributionsData = [];
-                let membersMap = {}; // To store member names by ID
+                let membersMap = {}; 
 
-                // Populate member dropdown
-                getDocs(collection(firestore, 'members')).then(snapshot => { // Modular: getDocs(collection(...))
+                // Populate member dropdown (from public members)
+                getDocs(collection(firestore, getPublicCollectionPath('members'))).then(snapshot => { 
                     snapshot.forEach(doc => {
                         membersMap[doc.id] = doc.data().name;
                         const option = document.createElement('option');
@@ -954,7 +988,24 @@
                     });
                 };
 
-                onSnapshot(collection(firestore, 'contributions'), snapshot => { // Modular: onSnapshot(collection(...))
+                // Listen to ALL contributions across ALL users for admin view
+                // This will read from individual user contribution subcollections.
+                // NOTE: This will require specific Firestore security rules to allow admin to read all users' subcollections.
+                // For simplicity here, we assume admin has broad read access.
+                const allUsersContributionsQuery = query(collection(firestore, `artifacts/${appId}/users`), collectionGroup(firestore, 'contributions'));
+
+                // To read contributions for a specific user, you'd use:
+                // collection(firestore, getPrivateCollectionPath(currentUserId, 'contributions'))
+                // For this admin view, we'll read all of them. This requires Firestore 'collectionGroup' query.
+                // This means the 'contributions' subcollection should be enabled for Collection Group Queries in Firestore.
+                // Add `collectionGroup` import to script: `import { getFirestore, collection, doc, getDoc, onSnapshot, updateDoc, addDoc, deleteDoc, serverTimestamp, query, where, getDocs, collectionGroup } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore.js";`
+                // And ensure 'collections' can be queried across users in Firestore rules.
+                
+                // For now, let's make a simplified assumption: admin manages all contributions in a single public collection
+                // to simplify the admin dashboard's data aggregation. If individual user_id collections are strict,
+                // a Cloud Function would be needed to aggregate or fan-out data to a public collection for admin.
+                // Let's use the public collection for Contributions as per the provided context for data synch.
+                onSnapshot(collection(firestore, getPublicCollectionPath('contributions')), snapshot => { 
                     allContributionsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
                     renderContributionsTable(allContributionsData);
                 });
@@ -998,7 +1049,7 @@
                 contributionsList.addEventListener('click', async (e) => {
                     if (e.target.classList.contains('edit-contribution-btn')) {
                         const contributionId = e.target.dataset.id;
-                        const docSnapshot = await getDoc(doc(firestore, 'contributions', contributionId)); // Modular: getDoc(doc(...))
+                        const docSnapshot = await getDoc(doc(firestore, getPublicCollectionPath('contributions'), contributionId)); 
                         if (docSnapshot.exists()) {
                             const contribution = docSnapshot.data();
                             document.getElementById('contribution-id').value = docSnapshot.id;
@@ -1012,7 +1063,7 @@
                     if (e.target.classList.contains('delete-contribution-btn')) {
                         const contributionId = e.target.dataset.id;
                         showConfirmationModal('Are you sure you want to delete this contribution?', async () => {
-                            await deleteDoc(doc(firestore, 'contributions', contributionId)); // Modular: deleteDoc(doc(...))
+                            await deleteDoc(doc(firestore, getPublicCollectionPath('contributions'), contributionId)); 
                         });
                     }
                 });
@@ -1028,14 +1079,19 @@
                     const contributionData = {
                         memberId: memberId,
                         amount: amount,
-                        date: new Date(date), // Firestore automatically converts Date objects to Timestamps
+                        date: new Date(date), 
                         description: description
                     };
 
                     if (contributionId) {
-                        await updateDoc(doc(firestore, 'contributions', contributionId), contributionData); // Modular: updateDoc(doc(...), data)
+                        await updateDoc(doc(firestore, getPublicCollectionPath('contributions'), contributionId), contributionData); 
                     } else {
-                        await addDoc(collection(firestore, 'contributions'), contributionData); // Modular: addDoc(collection(...), data)
+                        // When adding a new contribution from admin, it goes to the public 'contributions' collection
+                        await addDoc(collection(firestore, getPublicCollectionPath('contributions')), contributionData); 
+                        // Additionally, if the main page writes to artifacts/{appId}/users/{userId}/contributions,
+                        // you might need a Cloud Function to mirror this data to the user's specific subcollection.
+                        // Or, if the main page actually *reads* from the public collection for some views,
+                        // this setup is fine. For now, assuming the admin writes to the public collection.
                     }
                     contributionFormModal.style.display = 'none';
                 });
@@ -1048,10 +1104,10 @@
                             let valA = a[sortBy];
                             let valB = b[sortBy];
 
-                            if (sortBy === 'date') { // Handle Firebase Timestamp for date sorting
+                            if (sortBy === 'date') { 
                                 valA = a.date ? a.date.toMillis() : 0;
                                 valB = b.date ? b.date.toMillis() : 0;
-                            } else if (sortBy === 'memberName') { // Sort by member name, not ID
+                            } else if (sortBy === 'memberName') { 
                                 valA = membersMap[a.memberId] || 'Unknown'; 
                                 valB = membersMap[b.memberId] || 'Unknown'; 
                             }
@@ -1147,8 +1203,8 @@
                 let allLoansData = [];
                 let membersMap = {};
 
-                // Populate member dropdown
-                getDocs(collection(firestore, 'members')).then(snapshot => { // Modular: getDocs(collection(...))
+                // Populate member dropdown (from public members)
+                getDocs(collection(firestore, getPublicCollectionPath('members'))).then(snapshot => { 
                     snapshot.forEach(doc => {
                         membersMap[doc.id] = doc.data().name;
                         const option = document.createElement('option');
@@ -1183,7 +1239,9 @@
                     });
                 };
 
-                onSnapshot(collection(firestore, 'loans'), snapshot => { // Modular: onSnapshot(collection(...))
+                // Listen to ALL loans across ALL users for admin view
+                // For now, let's use the public collection for Loans as per the provided context for data synch.
+                onSnapshot(collection(firestore, getPublicCollectionPath('loans')), snapshot => { 
                     allLoansData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
                     renderLoansTable(allLoansData);
                 });
@@ -1223,7 +1281,7 @@
                 loansList.addEventListener('click', async (e) => {
                     if (e.target.classList.contains('edit-loan-btn')) {
                         const loanId = e.target.dataset.id;
-                        const docSnapshot = await getDoc(doc(firestore, 'loans', loanId)); // Modular: getDoc(doc(...))
+                        const docSnapshot = await getDoc(doc(firestore, getPublicCollectionPath('loans'), loanId)); 
                         if (docSnapshot.exists()) {
                             const loan = docSnapshot.data();
                             document.getElementById('loan-id').value = docSnapshot.id;
@@ -1239,17 +1297,17 @@
                     if (e.target.dataset.action === 'mark-repaid') {
                         const loanId = e.target.dataset.id;
                         showConfirmationModal('Mark this loan as fully repaid?', async () => {
-                            const docSnapshot = await getDoc(doc(firestore, 'loans', loanId)); // Modular: getDoc(doc(...))
+                            const docSnapshot = await getDoc(doc(firestore, getPublicCollectionPath('loans'), loanId)); 
                             if (docSnapshot.exists()) {
                                 const loan = docSnapshot.data();
-                                await updateDoc(doc(firestore, 'loans', loanId), { status: 'repaid', repaidAmount: loan.amount * (1 + loan.interestRate / 100) }); // Modular: updateDoc(doc(...), data)
+                                await updateDoc(doc(firestore, getPublicCollectionPath('loans'), loanId), { status: 'repaid', repaidAmount: loan.amount * (1 + loan.interestRate / 100) }); 
                             }
                         });
                     }
                     if (e.target.classList.contains('delete-loan-btn')) {
                         const loanId = e.target.dataset.id;
                         showConfirmationModal('Are you sure you want to delete this loan record?', async () => {
-                            await deleteDoc(doc(firestore, 'loans', loanId)); // Modular: deleteDoc(doc(...))
+                            await deleteDoc(doc(firestore, getPublicCollectionPath('loans'), loanId)); 
                         });
                     }
                 });
@@ -1268,15 +1326,18 @@
                         memberId: memberId,
                         amount: amount,
                         interestRate: interestRate,
-                        dueDate: new Date(dueDate), // Firestore automatically converts Date objects to Timestamps
+                        dueDate: new Date(dueDate), 
                         status: status,
                         repaidAmount: repaidAmount
                     };
 
                     if (loanId) {
-                        await updateDoc(doc(firestore, 'loans', loanId), loanData); // Modular: updateDoc(doc(...), data)
+                        await updateDoc(doc(firestore, getPublicCollectionPath('loans'), loanId), loanData); 
                     } else {
-                        await addDoc(collection(firestore, 'loans'), loanData); // Modular: addDoc(collection(...), data)
+                        // When adding a new loan from admin, it goes to the public 'loans' collection
+                        await addDoc(collection(firestore, getPublicCollectionPath('loans')), loanData); 
+                        // Similar to contributions, if the main app writes to private user collections,
+                        // consider a Cloud Function for synchronization.
                     }
                     loanFormModal.style.display = 'none';
                 });
@@ -1288,10 +1349,10 @@
                             let valA = a[sortBy];
                             let valB = b[sortBy];
 
-                            if (sortBy === 'dueDate') { // Handle Firebase Timestamp for date sorting
+                            if (sortBy === 'dueDate') { 
                                 valA = a.dueDate ? a.dueDate.toMillis() : 0;
                                 valB = b.dueDate ? b.dueDate.toMillis() : 0;
-                            } else if (sortBy === 'memberName') { // Sort by member name, not ID
+                            } else if (sortBy === 'memberName') { 
                                 valA = membersMap[a.memberId] || 'Unknown'; 
                                 valB = membersMap[b.memberId] || 'Unknown'; 
                             }
@@ -1392,7 +1453,7 @@
                     });
                 };
 
-                onSnapshot(collection(firestore, 'meetings'), snapshot => { // Modular: onSnapshot(collection(...))
+                onSnapshot(collection(firestore, getPublicCollectionPath('meetings')), snapshot => { 
                     allMeetingsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
                     renderMeetingsTable(allMeetingsData);
                 });
@@ -1422,7 +1483,7 @@
                 meetingsList.addEventListener('click', async (e) => {
                     if (e.target.classList.contains('edit-meeting-btn')) {
                         const meetingId = e.target.dataset.id;
-                        const docSnapshot = await getDoc(doc(firestore, 'meetings', meetingId)); // Modular: getDoc(doc(...))
+                        const docSnapshot = await getDoc(doc(firestore, getPublicCollectionPath('meetings'), meetingId)); 
                         if (docSnapshot.exists()) {
                             const meeting = docSnapshot.data();
                             document.getElementById('meeting-id').value = docSnapshot.id;
@@ -1438,7 +1499,7 @@
                     if (e.target.classList.contains('delete-meeting-btn')) {
                         const meetingId = e.target.dataset.id;
                         showConfirmationModal('Are you sure you want to delete this meeting/notice?', async () => {
-                            await deleteDoc(doc(firestore, 'meetings', meetingId)); // Modular: deleteDoc(doc(...))
+                            await deleteDoc(doc(firestore, getPublicCollectionPath('meetings'), meetingId)); 
                         });
                     }
                 });
@@ -1455,7 +1516,7 @@
 
                     const meetingData = {
                         title: title,
-                        date: new Date(date), // Firestore automatically converts Date objects to Timestamps
+                        date: new Date(date), 
                         time: time,
                         location: location,
                         description: description,
@@ -1463,9 +1524,9 @@
                     };
 
                     if (meetingId) {
-                        await updateDoc(doc(firestore, 'meetings', meetingId), meetingData); // Modular: updateDoc(doc(...), data)
+                        await updateDoc(doc(firestore, getPublicCollectionPath('meetings'), meetingId), meetingData); 
                     } else {
-                        await addDoc(collection(firestore, 'meetings'), meetingData); // Modular: addDoc(collection(...), data)
+                        await addDoc(collection(firestore, getPublicCollectionPath('meetings')), meetingData); 
                     }
                     meetingFormModal.style.display = 'none';
                 });
@@ -1478,7 +1539,7 @@
                             let valA = a[sortBy];
                             let valB = b[sortBy];
 
-                            if (sortBy === 'date') { // Handle Firebase Timestamp for date sorting
+                            if (sortBy === 'date') { 
                                 valA = a.date ? a.date.toMillis() : 0;
                                 valB = b.date ? b.date.toMillis() : 0;
                             }
@@ -1569,7 +1630,7 @@
                 let membersMap = {};
 
                 // Populate member dropdown
-                getDocs(collection(firestore, 'members')).then(snapshot => { // Modular: getDocs(collection(...))
+                getDocs(collection(firestore, getPublicCollectionPath('members'))).then(snapshot => { 
                     snapshot.forEach(doc => {
                         membersMap[doc.id] = doc.data().name;
                         const option = document.createElement('option');
@@ -1601,7 +1662,9 @@
                     });
                 };
 
-                onSnapshot(collection(firestore, 'fines'), snapshot => { // Modular: onSnapshot(collection(...))
+                // Listen to ALL fines across ALL users for admin view
+                // For now, let's use the public collection for Fines as per the provided context for data synch.
+                onSnapshot(collection(firestore, getPublicCollectionPath('fines')), snapshot => { 
                     allFinesData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
                     renderFinesTable(allFinesData);
                 });
@@ -1641,7 +1704,7 @@
                 finesList.addEventListener('click', async (e) => {
                     if (e.target.classList.contains('edit-fine-btn')) {
                         const fineId = e.target.dataset.id;
-                        const docSnapshot = await getDoc(doc(firestore, 'fines', fineId)); // Modular: getDoc(doc(...))
+                        const docSnapshot = await getDoc(doc(firestore, getPublicCollectionPath('fines'), fineId)); 
                         if (docSnapshot.exists()) {
                             const fine = docSnapshot.data();
                             document.getElementById('fine-id').value = docSnapshot.id;
@@ -1656,13 +1719,13 @@
                     if (e.target.dataset.action === 'mark-paid') {
                         const fineId = e.target.dataset.id;
                         showConfirmationModal('Mark this fine as paid?', async () => {
-                            await updateDoc(doc(firestore, 'fines', fineId), { status: 'paid' }); // Modular: updateDoc(doc(...), data)
+                            await updateDoc(doc(firestore, getPublicCollectionPath('fines'), fineId), { status: 'paid' }); 
                         });
                     }
                     if (e.target.classList.contains('delete-fine-btn')) {
                         const fineId = e.target.dataset.id;
                         showConfirmationModal('Are you sure you want to delete this fine record?', async () => {
-                            await deleteDoc(doc(firestore, 'fines', fineId)); // Modular: deleteDoc(doc(...))
+                            await deleteDoc(doc(firestore, getPublicCollectionPath('fines'), fineId)); 
                         });
                     }
                 });
@@ -1680,14 +1743,17 @@
                         memberId: memberId,
                         reason: reason,
                         amount: amount,
-                        dateIssued: new Date(dateIssued), // Firestore automatically converts Date objects to Timestamps
+                        dateIssued: new Date(dateIssued), 
                         status: status
                     };
 
                     if (fineId) {
-                        await updateDoc(doc(firestore, 'fines', fineId), fineData); // Modular: updateDoc(doc(...), data)
+                        await updateDoc(doc(firestore, getPublicCollectionPath('fines'), fineId), fineData); 
                     } else {
-                        await addDoc(collection(firestore, 'fines'), fineData); // Modular: addDoc(collection(...), data)
+                        // When adding a new fine from admin, it goes to the public 'fines' collection
+                        await addDoc(collection(firestore, getPublicCollectionPath('fines')), fineData); 
+                        // Similar to contributions and loans, if the main app writes to private user collections,
+                        // consider a Cloud Function for synchronization.
                     }
                     fineFormModal.style.display = 'none';
                 });
@@ -1717,7 +1783,7 @@
                     }
                     showConfirmationModal(`Mark ${selectedIds.length} fines as paid?`, async () => {
                         for (const id of selectedIds) {
-                            await updateDoc(doc(firestore, 'fines', id), { status: 'paid' }); // Modular: updateDoc(doc(...), data)
+                            await updateDoc(doc(firestore, getPublicCollectionPath('fines'), id), { status: 'paid' }); 
                         }
                     });
                 });
@@ -1838,7 +1904,7 @@
                     });
                 };
 
-                onSnapshot(collection(firestore, 'investments'), snapshot => { // Modular: onSnapshot(collection(...))
+                onSnapshot(collection(firestore, getPublicCollectionPath('investments')), snapshot => { 
                     allInvestmentsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
                     renderInvestmentsTable(allInvestmentsData);
                 });
@@ -1878,7 +1944,7 @@
                 investmentsList.addEventListener('click', async (e) => {
                     if (e.target.classList.contains('edit-investment-btn')) {
                         const investmentId = e.target.dataset.id;
-                        const docSnapshot = await getDoc(doc(firestore, 'investments', investmentId)); // Modular: getDoc(doc(...))
+                        const docSnapshot = await getDoc(doc(firestore, getPublicCollectionPath('investments'), investmentId)); 
                         if (docSnapshot.exists()) {
                             const investment = docSnapshot.data();
                             document.getElementById('investment-id').value = docSnapshot.id;
@@ -1893,13 +1959,13 @@
                     if (e.target.dataset.action === 'mark-completed') {
                         const investmentId = e.target.dataset.id;
                         showConfirmationModal('Mark this investment as completed?', async () => {
-                            await updateDoc(doc(firestore, 'investments', investmentId), { status: 'completed' }); // Modular: updateDoc(doc(...), data)
+                            await updateDoc(doc(firestore, getPublicCollectionPath('investments'), investmentId), { status: 'completed' }); 
                         });
                     }
                     if (e.target.classList.contains('delete-investment-btn')) {
                         const investmentId = e.target.dataset.id;
                         showConfirmationModal('Are you sure you want to delete this investment?', async () => {
-                            await deleteDoc(doc(firestore, 'investments', investmentId)); // Modular: deleteDoc(doc(...))
+                            await deleteDoc(doc(firestore, getPublicCollectionPath('investments'), investmentId)); 
                         });
                     }
                 });
@@ -1922,9 +1988,9 @@
                     };
 
                     if (investmentId) {
-                        await updateDoc(doc(firestore, 'investments', investmentId), investmentData); // Modular: updateDoc(doc(...), data)
+                        await updateDoc(doc(firestore, getPublicCollectionPath('investments'), investmentId), investmentData); 
                     } else {
-                        await addDoc(collection(firestore, 'investments'), investmentData); // Modular: addDoc(collection(...), data)
+                        await addDoc(collection(firestore, getPublicCollectionPath('investments')), investmentData); 
                     }
                     investmentFormModal.style.display = 'none';
                 });
@@ -2033,7 +2099,7 @@
                     });
                 };
 
-                onSnapshot(collection(firestore, 'polls'), snapshot => { // Modular: onSnapshot(collection(...))
+                onSnapshot(collection(firestore, getPublicCollectionPath('polls')), snapshot => { 
                     allPollsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
                     renderPollsTable(allPollsData);
                 });
@@ -2062,7 +2128,7 @@
                 pollsList.addEventListener('click', async (e) => {
                     if (e.target.classList.contains('edit-poll-btn')) {
                         const pollId = e.target.dataset.id;
-                        const docSnapshot = await getDoc(doc(firestore, 'polls', pollId)); // Modular: getDoc(doc(...))
+                        const docSnapshot = await getDoc(doc(firestore, getPublicCollectionPath('polls'), pollId)); 
                         if (docSnapshot.exists()) {
                             const poll = docSnapshot.data();
                             document.getElementById('poll-id').value = docSnapshot.id;
@@ -2076,12 +2142,12 @@
                     if (e.target.dataset.action === 'close-poll') {
                         const pollId = e.target.dataset.id;
                         showConfirmationModal('Are you sure you want to close this poll?', async () => {
-                            await updateDoc(doc(firestore, 'polls', pollId), { status: 'closed' }); // Modular: updateDoc(doc(...), data)
+                            await updateDoc(doc(firestore, getPublicCollectionPath('polls'), pollId), { status: 'closed' }); 
                         });
                     }
                     if (e.target.dataset.action === 'view-results') {
                         const pollId = e.target.dataset.id;
-                        const docSnapshot = await getDoc(doc(firestore, 'polls', pollId)); // Modular: getDoc(doc(...))
+                        const docSnapshot = await getDoc(doc(firestore, getPublicCollectionPath('polls'), pollId)); 
                         const poll = docSnapshot.data();
                         document.getElementById('poll-results-title').textContent = `Results for: ${poll.title}`;
                         
@@ -2092,7 +2158,7 @@
                         }
 
                         const labels = poll.options || [];
-                        const data = poll.votes ? Object.values(poll.votes) : Array(labels.length).fill(0); // Assuming votes are stored as { "Option A": 10, "Option B": 5 }
+                        const data = poll.votes ? Object.values(poll.votes) : Array(labels.length).fill(0); 
 
                         window.myPollChart = new Chart(pollResultsChartCtx, {
                             type: 'bar',
@@ -2131,7 +2197,7 @@
                     if (e.target.classList.contains('delete-poll-btn')) {
                         const pollId = e.target.dataset.id;
                         showConfirmationModal('Are you sure you want to delete this poll?', async () => {
-                            await deleteDoc(doc(firestore, 'polls', pollId)); // Modular: deleteDoc(doc(...))
+                            await deleteDoc(doc(firestore, getPublicCollectionPath('polls'), pollId)); 
                         });
                     }
                 });
@@ -2156,7 +2222,7 @@
                         });
                     } else {
                         // For existing polls, fetch current votes and update options
-                        const existingPollDoc = await getDoc(doc(firestore, 'polls', pollId)); // Modular: getDoc(doc(...))
+                        const existingPollDoc = await getDoc(doc(firestore, getPublicCollectionPath('polls'), pollId)); 
                         const existingPoll = existingPollDoc.data();
                         if (existingPoll && existingPoll.votes) {
                             // Preserve existing votes for options that still exist
@@ -2171,13 +2237,13 @@
                         description: description,
                         options: options,
                         status: status,
-                        votes: votes // Include votes data
+                        votes: votes 
                     };
 
                     if (pollId) {
-                        await updateDoc(doc(firestore, 'polls', pollId), pollData); // Modular: updateDoc(doc(...), data)
+                        await updateDoc(doc(firestore, getPublicCollectionPath('polls'), pollId), pollData); 
                     } else {
-                        await addDoc(collection(firestore, 'polls'), pollData); // Modular: addDoc(collection(...), data)
+                        await addDoc(collection(firestore, getPublicCollectionPath('polls')), pollData); 
                     }
                     pollFormModal.style.display = 'none';
                 });
@@ -2265,7 +2331,7 @@
                     });
                 };
 
-                onSnapshot(collection(firestore, 'documents'), snapshot => { // Modular: onSnapshot(collection(...))
+                onSnapshot(collection(firestore, getPublicCollectionPath('documents')), snapshot => { 
                     allDocumentsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
                     renderDocumentsTable(allDocumentsData);
                 });
@@ -2302,22 +2368,22 @@
                     }
 
                     const filePath = `documents/${Date.now()}_${file.name}`;
-                    const fileRef = ref(storage, filePath); // Modular: ref(storage, path)
+                    const fileRef = ref(storage, filePath); 
                     
                     try {
-                        await uploadBytes(fileRef, file); // Modular: uploadBytes(ref, file)
-                        const downloadUrl = await getDownloadURL(fileRef); // Modular: getDownloadURL(ref)
+                        await uploadBytes(fileRef, file); 
+                        const downloadUrl = await getDownloadURL(fileRef); 
 
                         const documentData = {
                             name: docName,
                             fileType: file.type,
-                            filePath: filePath, // Store path to delete later
+                            filePath: filePath, 
                             downloadUrl: downloadUrl,
                             uploadedBy: auth.currentUser ? auth.currentUser.email : 'Admin',
-                            uploadDate: serverTimestamp() // Modular: serverTimestamp()
+                            uploadDate: serverTimestamp() 
                         };
 
-                        await addDoc(collection(firestore, 'documents'), documentData); // Modular: addDoc(collection(...), data)
+                        await addDoc(collection(firestore, getPublicCollectionPath('documents')), documentData); 
                         documentFormModal.style.display = 'none';
                     } catch (error) {
                         console.error("Error uploading file:", error);
@@ -2334,11 +2400,11 @@
                             try {
                                 // Delete from Storage
                                 if (filePath) {
-                                    const fileRefToDelete = ref(storage, filePath); // Modular: ref(storage, path)
-                                    await deleteObject(fileRefToDelete); // Modular: deleteObject(ref)
+                                    const fileRefToDelete = ref(storage, filePath); 
+                                    await deleteObject(fileRefToDelete); 
                                 }
                                 // Delete from Firestore
-                                await deleteDoc(doc(firestore, 'documents', documentId)); // Modular: deleteDoc(doc(...))
+                                await deleteDoc(doc(firestore, getPublicCollectionPath('documents'), documentId)); 
                             } catch (error) {
                                 console.error("Error deleting document:", error);
                                 alert("Failed to delete document: " + error.message);
@@ -2418,7 +2484,7 @@
                 let allMembers = []; // Store all members for attendance marking
 
                 // Fetch all members once for the attendance marking feature
-                onSnapshot(collection(firestore, 'members'), snapshot => { // Modular: onSnapshot(collection(...))
+                onSnapshot(collection(firestore, getPublicCollectionPath('members')), snapshot => { 
                     allMembers = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
                 });
 
@@ -2439,7 +2505,9 @@
                     });
                 };
 
-                onSnapshot(collection(firestore, 'attendance'), snapshot => { // Modular: onSnapshot(collection(...))
+                // Listen to ALL attendance records across ALL users for admin view
+                // For now, let's use the public collection for Attendance as per the provided context for data synch.
+                onSnapshot(collection(firestore, getPublicCollectionPath('attendance')), snapshot => { 
                     allAttendanceData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
                     renderAttendanceTable(allAttendanceData);
                 });
@@ -2471,7 +2539,7 @@
                     const link = document.createElement("a");
                     link.setAttribute("href", encodedUri);
                     link.setAttribute("download", "chama_attendance.csv");
-                    document.body.appendChild(link); // Required for Firefox
+                    document.body.appendChild(link); 
                     link.click();
                     document.body.removeChild(link);
                 });
@@ -2505,10 +2573,11 @@
                     for (const memberCheckbox of checkedMembers) {
                         const memberId = memberCheckbox.value;
                         const memberName = memberCheckbox.dataset.name;
-                        await addDoc(collection(firestore, 'attendance'), { // Modular: addDoc(collection(...), data)
+                        // When marking attendance from admin, store it in the public 'attendance' collection
+                        await addDoc(collection(firestore, getPublicCollectionPath('attendance')), { 
                             memberId: memberId,
                             memberName: memberName,
-                            date: new Date(recordDate), // Firestore automatically converts Date objects to Timestamps
+                            date: new Date(recordDate), 
                             status: 'present'
                         });
                     }
@@ -2525,7 +2594,7 @@
                     if (e.target.classList.contains('delete-attendance-btn')) {
                         const recordId = e.target.dataset.id;
                         showConfirmationModal('Are you sure you want to delete this attendance record?', async () => {
-                            await deleteDoc(doc(firestore, 'attendance', recordId)); // Modular: deleteDoc(doc(...))
+                            await deleteDoc(doc(firestore, getPublicCollectionPath('attendance'), recordId)); 
                         });
                     }
                 });
@@ -2613,7 +2682,7 @@
                 let allMembers = [];
 
                 // Fetch members to populate recipient list
-                getDocs(collection(firestore, 'members')).then(snapshot => { // Modular: getDocs(collection(...))
+                onSnapshot(collection(firestore, getPublicCollectionPath('members')), snapshot => { 
                     allMembers = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
                     renderMemberCheckboxes();
                 });
@@ -2646,7 +2715,9 @@
                     });
                 };
 
-                onSnapshot(collection(firestore, 'notifications'), snapshot => { // Modular: onSnapshot(collection(...))
+                // Listen to ALL notifications across ALL users for admin view
+                // For now, let's use the public collection for Notifications as per the provided context for data synch.
+                onSnapshot(collection(firestore, getPublicCollectionPath('notifications')), snapshot => { 
                     allNotificationsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
                     renderNotificationsTable(allNotificationsData);
                 });
@@ -2696,13 +2767,14 @@
                         subject: subject,
                         message: message,
                         recipients: recipients,
-                        timestamp: serverTimestamp() // Modular: serverTimestamp()
+                        timestamp: serverTimestamp() 
                     };
 
                     // In a real application, you'd trigger a Cloud Function here
                     // to send actual emails/SMS using a service like SendGrid or Twilio.
                     // For this HTML-only dashboard, we'll just store it in Firestore.
-                    await addDoc(collection(firestore, 'notifications'), notificationData); // Modular: addDoc(collection(...), data)
+                    // When sending notifications from admin, store it in the public 'notifications' collection
+                    await addDoc(collection(firestore, getPublicCollectionPath('notifications')), notificationData); 
                     alert('Notification saved (actual sending would be done via backend).');
                     notificationFormModal.style.display = 'none';
                 });
@@ -2712,7 +2784,7 @@
                     if (e.target.classList.contains('delete-notification-btn')) {
                         const notificationId = e.target.dataset.id;
                         showConfirmationModal('Are you sure you want to delete this notification record?', async () => {
-                            await deleteDoc(doc(firestore, 'notifications', notificationId)); // Modular: deleteDoc(doc(...))
+                            await deleteDoc(doc(firestore, getPublicCollectionPath('notifications'), notificationId)); 
                         });
                     }
                 });
@@ -2751,9 +2823,9 @@
                 
                 // Financial Statements
                 document.getElementById('generate-financial-report-btn').addEventListener('click', async () => {
-                    const contributions = (await getDocs(collection(firestore, 'contributions'))).docs.map(doc => doc.data()); // Modular: getDocs(collection(...))
-                    const loans = (await getDocs(collection(firestore, 'loans'))).docs.map(doc => doc.data()); // Modular: getDocs(collection(...))
-                    const fines = (await getDocs(collection(firestore, 'fines'))).docs.map(doc => doc.data()); // Modular: getDocs(collection(...))
+                    const contributions = (await getDocs(collection(firestore, getPublicCollectionPath('contributions')))).docs.map(doc => doc.data()); 
+                    const loans = (await getDocs(collection(firestore, getPublicCollectionPath('loans')))).docs.map(doc => doc.data()); 
+                    const fines = (await getDocs(collection(firestore, getPublicCollectionPath('fines')))).docs.map(doc => doc.data()); 
                     
                     let totalContributions = contributions.reduce((sum, c) => sum + c.amount, 0);
                     let totalLoansIssued = loans.reduce((sum, l) => sum + l.amount, 0);
@@ -2775,8 +2847,8 @@
 
                 // Contributions Summary
                 document.getElementById('generate-contributions-summary-btn').addEventListener('click', async () => {
-                    const contributionsSnapshot = await getDocs(collection(firestore, 'contributions')); // Modular: getDocs(collection(...))
-                    const membersSnapshot = await getDocs(collection(firestore, 'members')); // Modular: getDocs(collection(...))
+                    const contributionsSnapshot = await getDocs(collection(firestore, getPublicCollectionPath('contributions'))); 
+                    const membersSnapshot = await getDocs(collection(firestore, getPublicCollectionPath('members'))); 
                     const membersMap = {};
                     membersSnapshot.forEach(doc => membersMap[doc.id] = doc.data().name);
 
@@ -2794,8 +2866,8 @@
 
                 // Loan Report
                 document.getElementById('generate-loan-report-btn').addEventListener('click', async () => {
-                    const loansSnapshot = await getDocs(collection(firestore, 'loans')); // Modular: getDocs(collection(...))
-                    const membersSnapshot = await getDocs(collection(firestore, 'members')); // Modular: getDocs(collection(...))
+                    const loansSnapshot = await getDocs(collection(firestore, getPublicCollectionPath('loans'))); 
+                    const membersSnapshot = await getDocs(collection(firestore, getPublicCollectionPath('members'))); 
                     const membersMap = {};
                     membersSnapshot.forEach(doc => membersMap[doc.id] = doc.data().name);
 
@@ -2814,8 +2886,8 @@
 
                 // Fines Report
                 document.getElementById('generate-fines-report-btn').addEventListener('click', async () => {
-                    const finesSnapshot = await getDocs(collection(firestore, 'fines')); // Modular: getDocs(collection(...))
-                    const membersSnapshot = await getDocs(collection(firestore, 'members')); // Modular: getDocs(collection(...))
+                    const finesSnapshot = await getDocs(collection(firestore, getPublicCollectionPath('fines'))); 
+                    const membersSnapshot = await getDocs(collection(firestore, getPublicCollectionPath('members'))); 
                     const membersMap = {};
                     membersSnapshot.forEach(doc => membersMap[doc.id] = doc.data().name);
 
@@ -2837,7 +2909,7 @@
                     const link = document.createElement("a");
                     link.setAttribute("href", encodedUri);
                     link.setAttribute("download", filename);
-                    document.body.appendChild(link); // Required for Firefox
+                    document.body.appendChild(link); 
                     link.click();
                     document.body.removeChild(link);
                     alert(`Generated and downloaded: ${filename}`);
