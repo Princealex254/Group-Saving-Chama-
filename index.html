@@ -266,8 +266,8 @@
                 <a href="#home" class="hover:text-gray-300 transition-colors" onclick="window.renderPage('home')">Home</a>
                 <a href="#about" class="hover:text-gray-300 transition-colors" onclick="window.renderPage('about')">About</a>
                 <a href="#services" class="hover:text-gray-300 transition-colors" onclick="window.renderPage('services')">Services</a>
-                <a href="#signup" class="hover:text-gray-300 transition-colors" onclick="window.renderPage('signup')">Sign Up</a>
-                <a href="#login" class="hover:text-gray-300 transition-colors" onclick="window.renderPage('login')">Login</a>
+                <a href="#signup" id="signup-link" class="hover:text-gray-300 transition-colors" onclick="window.renderPage('signup')">Sign Up</a>
+                <a href="#login" id="login-link" class="hover:text-gray-300 transition-colors" onclick="window.renderPage('login')">Login</a>
                 <a href="#dashboard" id="dashboard-link" class="hidden hover:text-gray-300 transition-colors" onclick="window.renderPage('dashboard')">Dashboard</a>
                 <button id="logout-button" class="hidden hover:text-gray-300 transition-colors" onclick="window.handleLogout()">Logout</button>
             </div>
@@ -282,8 +282,8 @@
             <a href="#home" class="block px-4 py-2 text-white hover:bg-red-700" onclick="window.renderPage('home'); window.toggleMobileMenu()">Home</a>
             <a href="#about" class="block px-4 py-2 text-white hover:bg-red-700" onclick="window.renderPage('about'); window.toggleMobileMenu()">About</a>
             <a href="#services" class="block px-4 py-2 text-white hover:bg-red-700" onclick="window.renderPage('services'); window.toggleMobileMenu()">Services</a>
-            <a href="#signup" class="block px-4 py-2 text-white hover:bg-red-700" onclick="window.renderPage('signup'); window.toggleMobileMenu()">Sign Up</a>
-            <a href="#login" class="block px-4 py-2 text-white hover:bg-red-700" onclick="window.renderPage('login'); window.toggleMobileMenu()">Login</a>
+            <a href="#signup" id="signup-link-mobile" class="block px-4 py-2 text-white hover:bg-red-700" onclick="window.renderPage('signup'); window.toggleMobileMenu()">Sign Up</a>
+            <a href="#login" id="login-link-mobile" class="block px-4 py-2 text-white hover:bg-red-700" onclick="window.renderPage('login'); window.toggleMobileMenu()">Login</a>
             <a href="#dashboard-mobile" id="dashboard-link-mobile" class="hidden block px-4 py-2 text-white hover:bg-red-700" onclick="window.renderPage('dashboard'); window.toggleMobileMenu()">Dashboard</a>
             <button id="logout-button-mobile" class="hidden w-full text-left px-4 py-2 text-white hover:bg-red-700" onclick="window.handleLogout(); window.toggleMobileMenu()">Logout</button>
         </div>
@@ -366,7 +366,7 @@
     <script type="module">
         // Firebase imports must be at the top level of the module
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-        import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, sendPasswordResetEmail, onAuthStateChanged, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+        import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, sendPasswordResetEmail, onAuthStateChanged, signInWithCustomToken, sendEmailVerification } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
         import { getFirestore, doc, setDoc, getDoc, updateDoc, collection, addDoc, query, orderBy, onSnapshot, serverTimestamp, runTransaction } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
         // Wrap all JavaScript in DOMContentLoaded to ensure HTML is fully parsed before script execution
@@ -469,12 +469,36 @@
                 const dashboardLinkMobile = document.getElementById('dashboard-link-mobile');
                 const logoutButtonMobile = document.getElementById('logout-button-mobile');
 
+                // Get references to login/signup links/buttons
+                const signupLink = document.getElementById('signup-link');
+                const loginLink = document.getElementById('login-link');
+                const signupLinkMobile = document.getElementById('signup-link-mobile');
+                const loginLinkMobile = document.getElementById('login-link-mobile');
+
+
                 if (user) {
                     currentUserId = user.uid;
+
+                    // Check if email is verified
+                    if (!user.emailVerified) {
+                        console.warn("User is logged in but email is not verified. Logging out.");
+                        showMessage("Please verify your email address to access the dashboard. Check your inbox for a verification link.", "error");
+                        await signOut(auth); // Log out the user if email is not verified
+                        window.renderPage('login'); // Redirect to login
+                        return; // Stop further execution
+                    }
+
                     dashboardLink.classList.remove('hidden');
                     logoutButton.classList.remove('hidden');
                     dashboardLinkMobile.classList.remove('hidden');
                     logoutButtonMobile.classList.remove('hidden');
+
+                    // Hide signup and login links/buttons
+                    if (signupLink) signupLink.classList.add('hidden');
+                    if (loginLink) loginLink.classList.add('hidden');
+                    if (signupLinkMobile) signupLinkMobile.classList.add('hidden');
+                    if (loginLinkMobile) loginLinkMobile.classList.add('hidden');
+
 
                     // Fetch user's full name for dashboard welcome and check Firestore profile
                     const userProfileRef = doc(db, `artifacts/${appId}/users/${currentUserId}/user_profile`, currentUserId);
@@ -515,6 +539,13 @@
                     logoutButton.classList.add('hidden');
                     dashboardLinkMobile.classList.add('hidden');
                     logoutButtonMobile.classList.add('hidden');
+
+                    // Show signup and login links/buttons
+                    if (signupLink) signupLink.classList.remove('hidden');
+                    if (loginLink) loginLink.classList.remove('hidden');
+                    if (signupLinkMobile) signupLinkMobile.classList.remove('hidden');
+                    if (loginLinkMobile) loginLinkMobile.classList.remove('hidden');
+
                     // If user logs out or session expires, redirect from dashboard
                     if (window.location.hash.includes('dashboard')) {
                         window.renderPage('login');
@@ -2371,6 +2402,12 @@
                     const userCredential = await createUserWithEmailAndPassword(auth, email, password);
                     const user = userCredential.user;
 
+                    // Send email verification
+                    await sendEmailVerification(user);
+                    console.log("Verification email sent to:", user.email);
+                    showMessage("Account created successfully! A verification email has been sent to your inbox. Please verify your email to log in.", "success");
+
+
                     // Store additional user details in Firestore in artifacts/{appId}/users/{user.uid}/user_profile/{user.uid}
                     const userProfileRef = doc(db, `artifacts/${appId}/users/${user.uid}/user_profile`, user.uid);
                     await setDoc(userProfileRef, {
@@ -2389,14 +2426,13 @@
                     // Add a welcome notification
                     await addDoc(collection(db, `artifacts/${appId}/users/${user.uid}/notifications`), {
                         title: "Welcome to Prince Alex Digital Chama!",
-                        message: "Your account has been created successfully. It is currently pending admin approval.",
+                        message: "Your account has been created successfully. Please verify your email address.",
                         date: serverTimestamp(),
                         status: "unread"
                     });
 
 
-                    showMessage("Account created successfully! Your information is pending approval.", "success");
-                    window.renderPage('pending-approval'); // Redirect to pending approval page
+                    window.renderPage('login'); // Redirect to login page, user can't access dashboard until verified
                 } catch (error) {
                     console.error("Error signing up:", error);
                     let errorMessage = "Failed to create account. Please try again.";
@@ -2423,10 +2459,19 @@
                 }
 
                 try {
-                    // Firebase Auth will handle user sign-in. onAuthStateChanged listener will then check Firestore profile.
-                    // This signInWithEmailAndPassword will fail if the email doesn't exist in Firebase Auth.
-                    await signInWithEmailAndPassword(auth, email, password);
-                    // No direct redirect here. The onAuthStateChanged listener will handle it based on Firestore profile existence.
+                    const userCredential = await signInWithEmailAndPassword(auth, email, password);
+                    const user = userCredential.user;
+
+                    // Check if email is verified after successful sign-in
+                    if (!user.emailVerified) {
+                        showMessage("Please verify your email address before logging in. A verification link was sent to your email.", "error");
+                        await signOut(auth); // Log out the user immediately if email is not verified
+                        return;
+                    }
+
+                    showMessage("Login successful! Redirecting to dashboard...", "success");
+                    // The onAuthStateChanged listener will handle the redirection to dashboard
+                    // based on user.emailVerified being true.
 
                 } catch (error) {
                     console.error("Error logging in:", error);
