@@ -375,16 +375,17 @@
             function initFirestoreListeners() {
                 // These are all the onSnapshot calls that need to be wrapped.
                 // Dashboard Overview
-                onSnapshot(collection(firestore, getPublicCollectionPath('members')), snapshot => { 
+                // MODIFIED: 'total-members' now sourced from 'user_profile' collection group
+                onSnapshot(collectionGroup(firestore, 'user_profile'), snapshot => { 
                     document.getElementById('total-members').textContent = snapshot.size;
                     if (snapshot.empty) {
-                        console.warn(`No documents in 'members' collection. Possible causes: 
+                        console.warn(`No documents in 'user_profile' collection group. Possible causes: 
                           1. No data exists
                           2. User not admin or rules blocking access
-                          3. Missing collection group index (though 'members' is a direct collection)`);
+                          3. Missing collection group index for 'user_profile'`);
                     }
                 }, error => {
-                    console.error("Firestore listener error for 'members' collection (Dashboard Overview):", error);
+                    console.error("Firestore listener error for 'user_profile' collection group (Dashboard Overview):", error);
                 });
 
                 onSnapshot(collectionGroup(firestore, 'contributions'), snapshot => { 
@@ -558,25 +559,30 @@
                     console.error("Firestore listener error for 'user_profile' collection group (Members Management):", error);
                 });
 
-                // Contributions Management listeners
-                onSnapshot(collection(firestore, getPublicCollectionPath('members')), snapshot => { 
+                // Contributions Management dropdown listener
+                // MODIFIED: Now fetches from user_profile collection group
+                onSnapshot(collectionGroup(firestore, 'user_profile'), snapshot => { 
                     contributionMemberSelect.innerHTML = '<option value="">Select Member</option>'; 
+                    membersMap = {}; // Reset membersMap
+                    memberIdToEmailMap = {}; // Reset memberIdToEmailMap
                     snapshot.forEach(doc => {
                         const memberData = doc.data();
-                        membersMap[doc.id] = memberData.name;
-                        memberIdToEmailMap[doc.id] = memberData.email; 
+                        const memberId = doc.id; // User ID is the doc ID in user_profile
+                        membersMap[memberId] = memberData.name;
+                        memberIdToEmailMap[memberId] = memberData.email; 
                         const option = document.createElement('option');
-                        option.value = doc.id;
+                        option.value = memberId;
                         option.textContent = memberData.name;
                         contributionMemberSelect.appendChild(option);
                     });
                     if (snapshot.empty) {
-                        console.warn(`No documents in 'members' collection (Contributions Management - member dropdown). Possible causes: 
+                        console.warn(`No documents in 'user_profile' collection group (Contributions Management - member dropdown). Possible causes: 
                           1. No data exists
-                          2. User not admin or rules blocking access`);
+                          2. User not admin or rules blocking access
+                          3. Missing collection group index for 'user_profile'`);
                     }
                 }, error => {
-                    console.error("Firestore listener error for 'members' collection (Contributions Management - member dropdown):", error);
+                    console.error("Firestore listener error for 'user_profile' collection group (Contributions Management - member dropdown):", error);
                 });
 
                 onSnapshot(collectionGroup(firestore, 'contributions'), snapshot => { 
@@ -592,25 +598,30 @@
                     console.error("Firestore listener error for 'contributions' collection group (Contributions Management):", error);
                 });
 
-                // Loan Management listeners
-                onSnapshot(collection(firestore, getPublicCollectionPath('members')), snapshot => { 
+                // Loan Management dropdown listener
+                // MODIFIED: Now fetches from user_profile collection group
+                onSnapshot(collectionGroup(firestore, 'user_profile'), snapshot => { 
                     loanMemberSelect.innerHTML = '<option value="">Select Member</option>'; 
+                    // membersMap and memberIdToEmailMap are global, will be updated by other listeners
+                    // but it's good practice to ensure consistency if this is the primary source for this section's dropdown.
                     snapshot.forEach(doc => {
                         const memberData = doc.data();
-                        membersMap[doc.id] = memberData.name;
-                        memberIdToEmailMap[doc.id] = memberData.email;
+                        const memberId = doc.id; // User ID is the doc ID in user_profile
+                        membersMap[memberId] = memberData.name; // Update global map
+                        memberIdToEmailMap[memberId] = memberData.email; // Update global map
                         const option = document.createElement('option');
-                        option.value = doc.id;
+                        option.value = memberId;
                         option.textContent = memberData.name;
                         loanMemberSelect.appendChild(option);
                     });
                     if (snapshot.empty) {
-                        console.warn(`No documents in 'members' collection (Loan Management - member dropdown). Possible causes: 
+                        console.warn(`No documents in 'user_profile' collection group (Loan Management - member dropdown). Possible causes: 
                           1. No data exists
-                          2. User not admin or rules blocking access`);
+                          2. User not admin or rules blocking access
+                          3. Missing collection group index for 'user_profile'`);
                     }
                 }, error => {
-                    console.error("Firestore listener error for 'members' collection (Loan Management - member dropdown):", error);
+                    console.error("Firestore listener error for 'user_profile' collection group (Loan Management - member dropdown):", error);
                 });
 
                 onSnapshot(collectionGroup(firestore, 'loans'), snapshot => { 
@@ -626,7 +637,7 @@
                     console.error("Firestore listener error for 'loans' collection group (Loan Management):", error);
                 });
 
-                // Meetings & Notices listeners
+                // Meetings & Notices listeners (remain public)
                 onSnapshot(collection(firestore, getPublicCollectionPath('meetings')), snapshot => { 
                     allMeetingsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
                     renderMeetingsTable(allMeetingsData);
@@ -639,25 +650,29 @@
                     console.error("Firestore listener error for 'meetings' collection (Meetings & Notices):", error);
                 });
 
-                // Fines & Penalties listeners
-                onSnapshot(collection(firestore, getPublicCollectionPath('members')), snapshot => { 
+                // Fines & Penalties dropdown listener
+                // MODIFIED: Now fetches from user_profile collection group
+                onSnapshot(collectionGroup(firestore, 'user_profile'), snapshot => { 
                     fineMemberSelect.innerHTML = '<option value="">Select Member</option>'; 
+                    // membersMap and memberIdToEmailMap are global, will be updated by other listeners
                     snapshot.forEach(doc => {
                         const memberData = doc.data();
-                        membersMap[doc.id] = memberData.name;
-                        memberIdToEmailMap[doc.id] = memberData.email;
+                        const memberId = doc.id; // User ID is the doc ID in user_profile
+                        membersMap[memberId] = memberData.name; // Update global map
+                        memberIdToEmailMap[memberId] = memberData.email; // Update global map
                         const option = document.createElement('option');
-                        option.value = doc.id;
+                        option.value = memberId;
                         option.textContent = memberData.name;
                         fineMemberSelect.appendChild(option);
                     });
                     if (snapshot.empty) {
-                        console.warn(`No documents in 'members' collection (Fines & Penalties - member dropdown). Possible causes: 
+                        console.warn(`No documents in 'user_profile' collection group (Fines & Penalties - member dropdown). Possible causes: 
                           1. No data exists
-                          2. User not admin or rules blocking access`);
+                          2. User not admin or rules blocking access
+                          3. Missing collection group index for 'user_profile'`);
                     }
                 }, error => {
-                    console.error("Firestore listener error for 'members' collection (Fines & Penalties - member dropdown):", error);
+                    console.error("Firestore listener error for 'user_profile' collection group (Fines & Penalties - member dropdown):", error);
                 });
 
                 onSnapshot(collectionGroup(firestore, 'fines'), snapshot => { 
@@ -673,7 +688,7 @@
                     console.error("Firestore listener error for 'fines' collection group (Fines & Penalties):", error);
                 });
 
-                // Investments listeners
+                // Investments listeners (remain public)
                 onSnapshot(collection(firestore, getPublicCollectionPath('investments')), snapshot => { 
                     allInvestmentsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
                     renderInvestmentsTable(allInvestmentsData);
@@ -686,7 +701,7 @@
                     console.error("Firestore listener error for 'investments' collection (Investments):", error);
                 });
 
-                // Voting & Polls listeners
+                // Voting & Polls listeners (remain public)
                 onSnapshot(collection(firestore, getPublicCollectionPath('polls')), snapshot => { 
                     allPollsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
                     renderPollsTable(allPollsData);
@@ -699,7 +714,7 @@
                     console.error("Firestore listener error for 'polls' collection (Voting & Polls):", error);
                 });
 
-                // Documents Management listeners
+                // Documents Management listeners (remain public)
                 onSnapshot(collection(firestore, getPublicCollectionPath('documents')), snapshot => { 
                     allDocumentsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
                     renderDocumentsTable(allDocumentsData);
@@ -712,20 +727,23 @@
                     console.error("Firestore listener error for 'documents' collection (Documents Management):", error);
                 });
 
-                // Attendance listeners
-                onSnapshot(collection(firestore, getPublicCollectionPath('members')), snapshot => { 
+                // Attendance listeners for all members list
+                // MODIFIED: Now fetches from user_profile collection group
+                onSnapshot(collectionGroup(firestore, 'user_profile'), snapshot => { 
                     allMembers = snapshot.docs.map(doc => {
                         const memberData = doc.data();
-                        memberIdToEmailMap[doc.id] = memberData.email;
-                        return { id: doc.id, ...memberData };
+                        const memberId = doc.id; // User ID is the doc ID in user_profile
+                        memberIdToEmailMap[memberId] = memberData.email;
+                        return { id: memberId, ...memberData };
                     });
                     if (snapshot.empty) {
-                        console.warn(`No documents in 'members' collection (Attendance - member dropdown). Possible causes: 
+                        console.warn(`No documents in 'user_profile' collection group (Attendance - member dropdown). Possible causes: 
                           1. No data exists
-                          2. User not admin or rules blocking access`);
+                          2. User not admin or rules blocking access
+                          3. Missing collection group index for 'user_profile'`);
                     }
                 }, error => {
-                    console.error("Firestore listener error for 'members' collection (Attendance - member dropdown):", error);
+                    console.error("Firestore listener error for 'user_profile' collection group (Attendance - member dropdown):", error);
                 });
 
                 onSnapshot(collectionGroup(firestore, 'attendance'), snapshot => { 
@@ -741,17 +759,19 @@
                     console.error("Firestore listener error for 'attendance' collection group (Attendance):", error);
                 });
 
-                // Notifications listeners
-                onSnapshot(collection(firestore, getPublicCollectionPath('members')), snapshot => { 
+                // Notifications listeners for all members list
+                // MODIFIED: Now fetches from user_profile collection group
+                onSnapshot(collectionGroup(firestore, 'user_profile'), snapshot => { 
                     allMembers = snapshot.docs.map(doc => ({ id: doc.id, email: doc.data().email, name: doc.data().name })); 
                     renderMemberCheckboxes();
                     if (snapshot.empty) {
-                        console.warn(`No documents in 'members' collection (Notifications - member dropdown). Possible causes: 
+                        console.warn(`No documents in 'user_profile' collection group (Notifications - member dropdown). Possible causes: 
                           1. No data exists
-                          2. User not admin or rules blocking access`);
+                          2. User not admin or rules blocking access
+                          3. Missing collection group index for 'user_profile'`);
                     }
                 }, error => {
-                    console.error("Firestore listener error for 'members' collection (Notifications - member dropdown):", error);
+                    console.error("Firestore listener error for 'user_profile' collection group (Notifications - member dropdown):", error);
                 });
 
                 onSnapshot(collectionGroup(firestore, 'notifications'), snapshot => { 
