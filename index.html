@@ -511,6 +511,8 @@
 
                 if (user) {
                     currentUserId = user.uid;
+                    console.log(`onAuthStateChanged: User logged in with UID: ${user.uid}`);
+
 
                     // Check if email is verified
                     if (!user.emailVerified) {
@@ -533,32 +535,52 @@
                     if (signupLinkMobile) signupLinkMobile.classList.add('hidden');
                     if (loginLinkMobile) loginLinkMobile.classList.add('hidden');
 
-
                     // Fetch user's full name for dashboard welcome and check Firestore profile
                     const userProfileRef = doc(db, `artifacts/${appId}/users/${currentUserId}/user_profile`, currentUserId);
                     try {
+                        console.log(`Attempting to fetch user profile for UID: ${currentUserId}`);
                         const userDoc = await getDoc(userProfileRef);
                         if (userDoc.exists()) {
                             currentUserData = userDoc.data();
-                            // Ensure 'name' is used consistently
+                            console.log("User profile fetched successfully:", currentUserData);
                             currentUserName = currentUserData.name || user.email;
                         } else {
-                            // User exists in Firebase Auth but not in Firestore 'user_profile'
-                            console.warn("User exists in Firebase Auth but not in Firestore. Logging out.");
-                            showMessage("Your account exists but your profile is incomplete. Please sign up again or contact support.", "error");
-                            await signOut(auth); // Log out the user
-                            window.renderPage('signup'); // Redirect to signup
-                            return; // Stop further execution
+                            // Profile document missing, but don't log out the user.
+                            // The user is authenticated via Firebase Auth, just their Firestore profile data might be missing.
+                            console.warn("User exists in Firebase Auth but no Firestore profile found. Displaying default/empty profile data.");
+                            currentUserData = {
+                                name: user.email,
+                                email: user.email,
+                                phone: "N/A",
+                                nationalId: "N/A",
+                                contribution_balance: 0,
+                                loan_balance: 0,
+                                next_meeting_date: "To be announced",
+                                status: "pending", // Default to pending if profile wasn't fully created
+                                profilePicUrl: ""
+                            };
+                            currentUserName = user.email; // Use email as name fallback
+                            showMessage("Your profile data is incomplete. Please update your profile from the dashboard.", "error");
                         }
                     } catch (error) {
-                        console.error("Error fetching user profile:", error);
-                        showMessage("Failed to retrieve user profile. Logging out.", "error");
-                        await signOut(auth);
-                        window.renderPage('login');
-                        return;
+                        console.error("Error fetching user profile from Firestore (might be permission error or network issue):", error);
+                        // If there's an error fetching, still let them into dashboard but with a warning
+                        currentUserData = {
+                            name: user.email,
+                            email: user.email,
+                            phone: "N/A",
+                            nationalId: "N/A",
+                            contribution_balance: 0,
+                            loan_balance: 0,
+                            next_meeting_date: "To be announced",
+                            status: "pending",
+                            profilePicUrl: ""
+                        };
+                        currentUserName = user.email;
+                        showMessage("Failed to retrieve your full profile. Please refresh or update your profile from the dashboard.", "error");
                     }
-                    // If currently on dashboard but not fully loaded, re-render
-                    if (window.location.hash.includes('dashboard')) {
+                    // If currently on dashboard or if we should redirect to dashboard (after successful login)
+                    if (window.location.hash.includes('dashboard') || window.location.hash.includes('login') || window.location.hash === '#home' || window.location.hash === '') {
                         window.renderPage('dashboard');
                     }
                     // Load chat history when user is authenticated and chat modal is open
@@ -569,6 +591,8 @@
                     currentUserId = null;
                     currentUserName = null;
                     currentUserData = {}; // Clear user data on logout
+                    console.log("onAuthStateChanged: User logged out.");
+
                     dashboardLink.classList.add('hidden');
                     logoutButton.classList.add('hidden');
                     dashboardLinkMobile.classList.add('hidden');
@@ -836,7 +860,12 @@
                             Welcome, <span id="dashboard-user-name">Member!</span>
                         </h1>
                         <div class="bg-white p-6 rounded-lg shadow-xl border-t-4 border-maroon">
-                            <p class="text-center text-gray-600 text-sm mb-6">Your User ID: <span id="display-user-id">Loading...</span></p>
+                            <div class="text-center text-gray-600 text-sm mb-6 space-y-1">
+                                <p>Your User ID: <span id="display-user-id">Loading...</span></p>
+                                <p>Email: <span id="dashboard-user-email">Loading...</span></p>
+                                <p>Phone: <span id="dashboard-user-phone">Loading...</span></p>
+                                <p>National ID: <span id="dashboard-user-national-id">Loading...</span></p>
+                            </div>
 
                             <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
                                 <div class="bg-gray-100 p-4 rounded-lg shadow-md border-l-4 border-maroon">
@@ -1432,7 +1461,8 @@
                     stopImageCarousel();
                 }
 
-                // Redirect to login if trying to access dashboard and not logged in
+                // Redirect to login if trying to access dashboard and not logged in AND NOT VERIFIED
+                // The onAuthStateChanged will handle the verification check.
                 if (pageName === 'dashboard') {
                     if (!auth || !auth.currentUser) {
                         showMessage("Please log in to access the Dashboard.", "error");
@@ -2461,6 +2491,8 @@
                         status: "pending", // Set initial status as pending approval
                         profilePicUrl: "", // Added profilePicUrl
                     });
+                    console.log("User profile data saved to Firestore successfully.");
+
 
                     // Add a welcome notification
                     await addDoc(collection(db, `artifacts/${appId}/users/${user.uid}/notifications`), {
@@ -2469,6 +2501,7 @@
                         date: serverTimestamp(),
                         status: "unread"
                     });
+                    console.log("Welcome notification added.");
 
 
                     window.renderPage('login'); // Redirect to login page, user can't access dashboard until verified
@@ -2500,6 +2533,8 @@
                 try {
                     const userCredential = await signInWithEmailAndPassword(auth, email, password);
                     const user = userCredential.user;
+                    console.log("Firebase Auth login successful for user:", user.uid);
+
 
                     // Check if email is verified after successful sign-in
                     if (!user.emailVerified) {
@@ -2508,9 +2543,9 @@
                         return;
                     }
 
-                    showMessage("Login successful! Redirecting to dashboard...", "success");
-                    // The onAuthStateChanged listener will handle the redirection to dashboard
-                    // based on user.emailVerified being true.
+                    showMessage("Login successful! Welcome to your dashboard.", "success");
+                    // The onAuthStateChanged listener will now handle the redirection to dashboard
+                    // based on user.emailVerified being true and will not log out if profile is incomplete.
 
                 } catch (error) {
                     console.error("Error logging in:", error);
@@ -2570,6 +2605,11 @@
                 const loanBalance = document.getElementById('loan-balance');
                 const nextMeetingDate = document.getElementById('next-meeting-date');
                 const displayUserId = document.getElementById('display-user-id');
+                // New elements for user profile display on dashboard
+                const dashboardUserEmail = document.getElementById('dashboard-user-email');
+                const dashboardUserPhone = document.getElementById('dashboard-user-phone');
+                const dashboardUserNationalId = document.getElementById('dashboard-user-national-id');
+
 
                 if (!auth || !auth.currentUser || !currentUserId) {
                     // This case should ideally be handled by the renderPage redirect,
@@ -2579,21 +2619,22 @@
                     loanBalance.textContent = "KSh 0.00";
                     nextMeetingDate.textContent = "N/A";
                     displayUserId.textContent = "N/A (Not Logged In)";
+                    dashboardUserEmail.textContent = "N/A";
+                    dashboardUserPhone.textContent = "N/A";
+                    dashboardUserNationalId.textContent = "N/A";
                     return;
                 }
 
                 displayUserId.textContent = currentUserId;
+                dashboardUserEmail.textContent = auth.currentUser.email || "N/A"; // Always show auth email if available
 
-                // Display currentUserName immediately if available
-                if (currentUserName) {
-                    dashboardUserName.textContent = currentUserName;
-                } else {
-                    dashboardUserName.textContent = auth.currentUser.email || "Member!";
-                }
+                // Display currentUserName immediately if available (from global currentUserData or auth.currentUser)
+                dashboardUserName.textContent = currentUserName || auth.currentUser.email || "Member!";
+
 
                 // Fetch real-time data from Firestore
                 const userProfileRef = doc(db, `artifacts/${appId}/users/${currentUserId}/user_profile`, currentUserId);
-                // Using onSnapshot for real-time updates on dashboard balances
+                // Using onSnapshot for real-time updates on dashboard balances and profile data
                 if (window.unsubscribeUserProfile) {
                     window.unsubscribeUserProfile();
                 }
@@ -2605,24 +2646,56 @@
                         contributionBalance.textContent = `KSh ${currentUserData.contribution_balance?.toFixed(2) || '0.00'}`;
                         loanBalance.textContent = `KSh ${currentUserData.loan_balance?.toFixed(2) || '0.00'}`;
                         nextMeetingDate.textContent = currentUserData.next_meeting_date || "To be announced";
+
+                        // Populate new dashboard elements with data from Firestore profile
+                        dashboardUserPhone.textContent = currentUserData.phone || "N/A";
+                        dashboardUserNationalId.textContent = currentUserData.nationalId || "N/A";
+
+                        // Also check if status is pending and show a message
+                        if (currentUserData.status === 'pending') {
+                            showMessage("Your account is pending admin approval. Some features may be locked.", "error");
+                        } else if (currentUserData.status === 'approved') {
+                            // If status changes to approved while on dashboard, show success
+                            showMessage("Your account has been approved! You now have full access.", "success");
+                        }
+
+
                     } else {
-                        console.log("No user profile found for current user, or it was deleted.");
-                        // Set default placeholders if profile not found/deleted
+                        // Profile document missing, but don't log out.
+                        // Display default values and show an error/warning message.
+                        console.warn("No user profile found for current user, or it was deleted. Displaying default values.");
                         dashboardUserName.textContent = auth.currentUser.email || "Member!";
                         contributionBalance.textContent = "KSh 0.00";
                         loanBalance.textContent = "KSh 0.00";
                         nextMeetingDate.textContent = "To be announced";
-                        // Consider logging out the user if their profile is unexpectedly gone
-                        // handleLogout();
+                        dashboardUserPhone.textContent = "N/A";
+                        dashboardUserNationalId.textContent = "N/A";
+                        showMessage("Your profile data is missing or incomplete. Please use the 'Update Profile' section.", "error");
+                        // The user is still logged in to Firebase Auth, just their profile data in Firestore is an issue.
+                        // Update currentUserData to reflect the "missing" state locally as well
+                        currentUserData = {
+                            name: auth.currentUser.email,
+                            email: auth.currentUser.email,
+                            phone: "N/A",
+                            nationalId: "N/A",
+                            contribution_balance: 0,
+                            loan_balance: 0,
+                            next_meeting_date: "To be announced",
+                            status: "pending", // Default to pending if profile document disappears
+                            profilePicUrl: ""
+                        };
                     }
                 }, (error) => {
                     console.error("Error fetching dashboard data (onSnapshot):", error);
-                    showMessage("Failed to load dashboard data.", "error");
+                    showMessage("Failed to load dashboard data. Please refresh.", "error");
                     // Set default placeholders on error
                     dashboardUserName.textContent = auth.currentUser.email || "Member!";
                     contributionBalance.textContent = "KSh 0.00";
                     loanBalance.textContent = "KSh 0.00";
                     nextMeetingDate.textContent = "To be announced";
+                    dashboardUserEmail.textContent = auth.currentUser.email || "N/A";
+                    dashboardUserPhone.textContent = "N/A";
+                    dashboardUserNationalId.textContent = "N/A";
                 });
             }
 
