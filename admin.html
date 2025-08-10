@@ -8,7 +8,8 @@
     <!-- Modular Firebase SDKs -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-app.js";
-        import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, signOut } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-auth.js";
+        // IMPORT_UPDATE: Added browserLocalPersistence
+        import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, signOut, browserLocalPersistence, setPersistence } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-auth.js";
         import { getFirestore, collection, doc, getDoc, onSnapshot, updateDoc, addDoc, deleteDoc, serverTimestamp, query, where, getDocs } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore.js";
         import { getStorage, ref, uploadBytes, getDownloadURL, deleteObject } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-storage.js";
 
@@ -307,7 +308,8 @@
     <script type="module">
         // Import the functions you need from the SDKs you need
         import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-app.js";
-        import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, signOut } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-auth.js";
+        // IMPORT_UPDATE: Added browserLocalPersistence and setPersistence
+        import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, signOut, browserLocalPersistence, setPersistence } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-auth.js";
         import { getFirestore, collection, doc, getDoc, onSnapshot, updateDoc, addDoc, deleteDoc, serverTimestamp, query, where, getDocs } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore.js";
         import { getStorage, ref, uploadBytes, getDownloadURL, deleteObject } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-storage.js";
         // Chart.js is already loaded as a global script, no need to import here.
@@ -355,10 +357,11 @@
                         // ❌ Not an admin or isAdmin is false, log them out
                         await signOut(auth); // Modular: signOut(auth)
                         alert("You are not authorized to access the admin dashboard.");
-                        // Redirect to the main site login (replace with your actual main site login URL)
-                        window.location.href = 'http://savingchama.princealex.pro/admin.html'; 
+                        // Redirect to the main site login (updated to your domain)
+                        window.location.href = 'http://savingchama.princealex.pro/index.html'; // URL_UPDATE
                     }
                 } else {
+                    // This block ensures the login page is shown if no user is authenticated
                     loginPage.style.display = 'block';
                     dashboardPage.style.display = 'none';
                 }
@@ -370,6 +373,8 @@
                 const email = loginForm.email.value;
                 const password = loginForm.password.value;
                 try {
+                    // PERSISTENCE_UPDATE: Set persistence before signing in
+                    await setPersistence(auth, browserLocalPersistence);
                     await signInWithEmailAndPassword(auth, email, password); // Modular: signInWithEmailAndPassword(auth, ...)
                 } catch (error) {
                     document.getElementById('login-error').textContent = error.message;
@@ -380,8 +385,8 @@
             logoutBtn.addEventListener('click', async () => {
                 try {
                     await signOut(auth); // Sign out the user from Firebase
-                    // Optional: Redirect to login page or home page
-                    window.location.href = 'index.html'; // Redirect to the login page (or your desired page)
+                    // Optional: Redirect to login page or home page (updated to your domain)
+                    window.location.href = 'http://savingchama.princealex.pro/index.html'; // URL_UPDATE
                 } catch (error) {
                     console.error("Error signing out:", error);
                     alert("Failed to log out. Please try again.");
