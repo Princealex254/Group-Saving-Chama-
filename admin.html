@@ -537,16 +537,25 @@
                 });
 
                 // Members Management listeners
-                onSnapshot(collection(firestore, getPublicCollectionPath('members')), snapshot => { 
-                    allMembersData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                // MODIFIED: Now fetches from user_profile collection group
+                onSnapshot(collectionGroup(firestore, 'user_profile'), snapshot => { 
+                    // Map the documents to the structure expected by renderMembersTable
+                    allMembersData = snapshot.docs.map(doc => ({ 
+                        id: doc.id, // The document ID of the user_profile is the userId
+                        name: doc.data().name, 
+                        email: doc.data().email, 
+                        status: doc.data().status,
+                        profilePicUrl: doc.data().profilePicUrl, 
+                    }));
                     renderMembersTable(allMembersData);
                     if (snapshot.empty) {
-                        console.warn(`No documents in 'members' collection (Members Management). Possible causes: 
+                        console.warn(`No documents in 'user_profile' collection group (Members Management). Possible causes: 
                           1. No data exists
-                          2. User not admin or rules blocking access`);
+                          2. User not admin or rules blocking access
+                          3. Missing collection group index for 'user_profile'`);
                     }
                 }, error => {
-                    console.error("Firestore listener error for 'members' collection (Members Management):", error);
+                    console.error("Firestore listener error for 'user_profile' collection group (Members Management):", error);
                 });
 
                 // Contributions Management listeners
@@ -669,7 +678,7 @@
                     allInvestmentsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
                     renderInvestmentsTable(allInvestmentsData);
                     if (snapshot.empty) {
-                        console.warn(`No documents in 'investments' collection (Investments). Possible causes: 
+                        console.warn(`No documents in 'investments' collection. Possible causes: 
                           1. No data exists
                           2. User not admin or rules blocking access`);
                     }
@@ -1063,7 +1072,8 @@
                 membersList.addEventListener('click', async (e) => { 
                     if (e.target.classList.contains('edit-member-btn')) {
                         const memberId = e.target.dataset.id;
-                        const docSnapshot = await getDoc(doc(firestore, getPublicCollectionPath('members'), memberId)); 
+                        // MODIFIED: Fetch from user_profile using memberId as userId
+                        const docSnapshot = await getDoc(doc(firestore, getPrivateCollectionPath(memberId, 'user_profile'), memberId)); 
                         if (docSnapshot.exists()) {
                             const member = docSnapshot.data();
                             document.getElementById('member-id').value = docSnapshot.id;
@@ -1084,20 +1094,23 @@
                         const memberId = e.target.dataset.id;
                         const newStatus = e.target.dataset.action === 'approve' ? 'active' : 'deactivated';
                         showConfirmationModal(`Are you sure you want to ${newStatus} this member?`, async () => {
-                            await updateDoc(doc(firestore, getPublicCollectionPath('members'), memberId), { status: newStatus }); 
+                            // MODIFIED: Update user_profile using memberId as userId
+                            await updateDoc(doc(firestore, getPrivateCollectionPath(memberId, 'user_profile'), memberId), { status: newStatus }); 
                         });
                     }
                     if (e.target.classList.contains('delete-member-btn')) {
                         const memberId = e.target.dataset.id;
                         showConfirmationModal('Are you sure you want to delete this member permanently?', async () => {
-                            await deleteDoc(doc(firestore, getPublicCollectionPath('members'), memberId)); 
+                            // MODIFIED: Delete from user_profile using memberId as userId
+                            // Note: This only deletes the profile document, not the Firebase Auth user.
+                            await deleteDoc(doc(firestore, getPrivateCollectionPath(memberId, 'user_profile'), memberId)); 
                         });
                     }
                 });
 
                 memberForm.addEventListener('submit', async (e) => {
                     e.preventDefault();
-                    const memberId = document.getElementById('member-id').value;
+                    const memberId = document.getElementById('member-id').value; // This will be the userId for existing users
                     const name = document.getElementById('member-name').value;
                     const email = document.getElementById('member-email').value;
                     const status = document.getElementById('member-status').value;
@@ -1105,8 +1118,12 @@
                     
                     let profilePicUrl = document.getElementById('current-profile-pic').src; 
 
+                    let targetMemberId = memberId;
+
                     if (profilePicFile) {
-                        const storageRefPath = `profile_pictures/${memberId || Date.now()}-${file.name}`; 
+                        // If it's a new member (no memberId yet), generate a temporary ID for storage path
+                        const tempIdForStorage = memberId || Date.now(); 
+                        const storageRefPath = `profile_pictures/${tempIdForStorage}-${profilePicFile.name}`; 
                         const fileRef = ref(storage, storageRefPath); 
                         await uploadBytes(fileRef, profilePicFile); 
                         profilePicUrl = await getDownloadURL(fileRef); 
@@ -1115,9 +1132,16 @@
                     const memberData = { name, email, status, profilePicUrl };
 
                     try {
-                        if (memberId) {
-                            await updateDoc(doc(firestore, getPublicCollectionPath('members'), memberId), memberData); 
+                        if (targetMemberId) {
+                            // For existing members, update their specific user_profile document
+                            await updateDoc(doc(firestore, getPrivateCollectionPath(targetMemberId, 'user_profile'), targetMemberId), memberData); 
                         } else {
+                            // For new members added via admin, create a new document in the public 'members' collection
+                            // NOTE: If you intend this to create a *full* user profile in the private path,
+                            // you would need to define a new userId (e.g., a Firebase Auth UID) here
+                            // and then use getPrivateCollectionPath(newUserId, 'user_profile').
+                            // For simplicity, this creates a public member entry as a 'placeholder' for admin view.
+                            // A more robust solution would involve creating a Firebase Auth user first.
                             await addDoc(collection(firestore, getPublicCollectionPath('members')), memberData); 
                         }
                         memberFormModal.style.display = 'none';
@@ -1153,7 +1177,8 @@
                     showConfirmationModal(`Approve ${selectedIds.length} members?`, async () => {
                         for (const id of selectedIds) {
                             try {
-                                await updateDoc(doc(firestore, getPublicCollectionPath('members'), id), { status: 'active' }); 
+                                // MODIFIED: Bulk approve in user_profile
+                                await updateDoc(doc(firestore, getPrivateCollectionPath(id, 'user_profile'), id), { status: 'active' }); 
                             } catch (error) {
                                 console.error(`Error bulk approving member ${id}:`, error);
                                 showConfirmationModal(`Failed to approve member ${id}: ${error.message}`, () => {});
@@ -1171,7 +1196,8 @@
                     showConfirmationModal(`Deactivate ${selectedIds.length} members?`, async () => {
                         for (const id of selectedIds) {
                             try {
-                                await updateDoc(doc(firestore, getPublicCollectionPath('members'), id), { status: 'deactivated' }); 
+                                // MODIFIED: Bulk deactivate in user_profile
+                                await updateDoc(doc(firestore, getPrivateCollectionPath(id, 'user_profile'), id), { status: 'deactivated' }); 
                             } catch (error) {
                                 console.error(`Error bulk deactivating member ${id}:`, error);
                                 showConfirmationModal(`Failed to deactivate member ${id}: ${error.message}`, () => {});
@@ -3245,12 +3271,13 @@
                         <button class="btn btn-primary" id="generate-attendance-report-btn">Attendance Report (CSV)</button>
                     </div>`;
                 
-                const membersSnapshot = await getDocs(collection(firestore, getPublicCollectionPath('members'))); 
+                // MODIFIED: Fetch members map from 'user_profile' collection group
+                const membersSnapshot = await getDocs(collectionGroup(firestore, 'user_profile')); 
                 const membersMap = {};
                 if (!membersSnapshot.empty) {
                     membersSnapshot.forEach(doc => membersMap[doc.id] = doc.data().name);
                 } else {
-                    console.warn(`No documents in 'members' collection for reports. This may affect member name resolution.`);
+                    console.warn(`No documents in 'user_profile' collection group for reports. This may affect member name resolution.`);
                 }
 
                 document.getElementById('generate-financial-report-btn').addEventListener('click', async () => {
