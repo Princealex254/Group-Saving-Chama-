@@ -119,56 +119,19 @@
             background-color: var(--primary-maroon);
             color: var(--secondary-white);
         }
-        /* Styles for the dynamic background carousel using <img> tags */
-        .hero {
-            position: relative;
-            min-height: 400px; /* Adjust as needed */
-            overflow: hidden;
+        /* New style for the attractive hero section */
+        .attractive-hero {
+            background: linear-gradient(135deg, var(--primary-maroon) 0%, #a00000 100%); /* Gradient background */
+            min-height: 400px; /* Consistent height */
             display: flex;
+            flex-direction: column;
             justify-content: center;
             align-items: center;
-            border-radius: 0.5rem; /* Matches rounded-lg on section */
-            box-shadow: 0 10px 15px rgba(0, 0, 0, 0.1); /* Matches shadow-xl */
-        }
-
-        .hero-background-image {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            object-fit: cover; /* Ensures images cover the area without distortion */
-            opacity: 0;
-            transition: opacity 1s ease-in-out; /* Smooth transition between images */
-            z-index: 1; /* Below overlay and content */
-        }
-
-        .hero-background-image.active {
-            opacity: 1;
-            z-index: 2; /* Bring active image forward */
-        }
-
-        .hero-overlay {
-            position: absolute;
-            inset: 0;
-            background-color: rgba(0, 0, 0, 0.5); /* Semi-transparent overlay */
-            z-index: 3; /* Above images, below content */
-        }
-
-        .hero-content {
-            position: relative;
-            z-index: 4; /* Above everything */
-            text-align: center;
+            border-radius: 0.5rem;
+            box-shadow: 0 10px 15px rgba(0, 0, 0, 0.1);
             color: white;
-            padding: 1.5rem; /* Matches py-12 md:py-24 p-6 on section */
-            /* Replicate existing section padding into hero-content to maintain spacing */
-            padding-top: 3rem; /* equivalent to py-12 */
-            padding-bottom: 3rem;
-        }
-
-        /* Adjusting existing section padding for hero structure */
-        .home-section {
-            padding: 0; /* Remove padding from section itself, it's now handled by .hero-content */
+            text-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+            padding: 3rem; /* Sufficient padding for content */
         }
 
 
@@ -440,7 +403,7 @@
         // Firebase imports must be at the top level of the module
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
         import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, sendPasswordResetEmail, onAuthStateChanged, signInWithCustomToken, sendEmailVerification } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-        import { getFirestore, doc, setDoc, getDoc, updateDoc, collection, addDoc, query, orderBy, onSnapshot, serverTimestamp, runTransaction } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+        import { getFirestore, doc, setDoc, getDoc, updateDoc, collection, addDoc, query, orderBy, onSnapshot, serverTimestamp, runTransaction, getDocs } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
         // Wrap all JavaScript in DOMContentLoaded to ensure HTML is fully parsed before script execution
         document.addEventListener("DOMContentLoaded", () => {
@@ -453,18 +416,15 @@
             let currentUserName = null;
             let currentUserData = {}; // To store full user profile data
 
-            // Image carousel variables
-            // IMPORTANT: Replace these placeholder URLs with the actual public URLs of your hosted images.
-            // Images for websites must be hosted online (e.g., Firebase Storage, Imgur, your own server)
-            // as local file paths (like C:/Users/...) cannot be accessed by web browsers due to security restrictions.
-            const imageUrls = [
-                'img src="image.jpg" alt="Image" class="hero-background-image active',      // Corresponds to image.jpg
-                'https://placehold.co/1200x600/800000/ffffff?text=Image+Two',      // Corresponds to image1.jpg
-                'https://placehold.co/1200x600/800000/ffffff?text=Image+Three',    // Corresponds to image2.jpg
-                'https://placehold.co/1200x600/800000/ffffff?text=Image+Four'      // Corresponds to image3.jpg
-            ];
-            let currentImageIndex = 0;
-            let carouselIntervalId; // To store the interval ID for clearing
+            // Firebase Helper Functions
+            // These functions create correct Firestore collection paths based on app ID and user ID.
+            function getPublicCollectionPath(collectionName) {
+              return `artifacts/${appId}/public/data/${collectionName}`;
+            }
+
+            function getPrivateCollectionPath(userId, collectionName) {
+              return `artifacts/${appId}/users/${userId}/${collectionName}`;
+            }
 
             // Message Box function
             function showMessage(message, type = 'success') {
@@ -483,51 +443,6 @@
                 // Give it a moment to transition out before resetting classes
                 setTimeout(() => msgBox.className = 'message-box', 500);
             }
-
-            // Function to update the background image for the carousel (now toggling active class)
-            function updateHeroBackground() {
-                const images = document.querySelectorAll('.hero-background-image');
-                if (images.length === 0) return;
-
-                // Remove 'active' from current image
-                images[currentImageIndex].classList.remove('active');
-
-                // Move to the next image
-                currentImageIndex = (currentImageIndex + 1) % images.length;
-
-                // Add 'active' to the new current image
-                images[currentImageIndex].classList.add('active');
-            }
-
-            // Function to start the image carousel
-            function startImageCarousel() {
-                // Clear any existing interval to prevent multiple carousels running
-                if (carouselIntervalId) {
-                    clearInterval(carouselIntervalId);
-                }
-                // Ensure first image is active initially
-                const images = document.querySelectorAll('.hero-background-image');
-                if (images.length > 0) {
-                    images.forEach((img, index) => {
-                        if (index === 0) {
-                            img.classList.add('active');
-                        } else {
-                            img.classList.remove('active');
-                        }
-                    });
-                    currentImageIndex = 0; // Reset index to start from the first image
-                }
-                carouselIntervalId = setInterval(updateHeroBackground, 7000); // Change image every 7 seconds
-            }
-
-            // Function to stop the image carousel
-            function stopImageCarousel() {
-                if (carouselIntervalId) {
-                    clearInterval(carouselIntervalId);
-                    carouselIntervalId = null;
-                }
-            }
-
 
             // Initialize Firebase with the provided configuration
             // Using __firebase_config from the environment, not hardcoded.
@@ -599,7 +514,7 @@
                     if (loginLinkMobile) loginLinkMobile.classList.add('hidden');
 
                     // Fetch user's full name for dashboard welcome and check Firestore profile
-                    const userProfileRef = doc(db, `artifacts/${appId}/users/${currentUserId}/user_profile`, currentUserId);
+                    const userProfileRef = doc(db, getPrivateCollectionPath(currentUserId, 'user_profile'), currentUserId);
                     try {
                         console.log(`Attempting to fetch user profile for UID: ${currentUserId}`);
                         const userDoc = await getDoc(userProfileRef);
@@ -684,24 +599,15 @@
             // Page Content Definitions
             const pages = {
                 home: `
-                    <section class="text-center py-12 md:py-24 text-white rounded-lg shadow-xl relative overflow-hidden home-section">
-                        <div class="hero">
-                            <img src="${imageUrls[0]}" alt="Image of Savings Group" class="hero-background-image active">
-                            <img src="${imageUrls[1]}" alt="Image of Community Finance" class="hero-background-image">
-                            <img src="${imageUrls[2]}" alt="Image of Invest Together" class="hero-background-image">
-                            <img src="${imageUrls[3]}" alt="Image of image3" class="hero-background-image">
-                            <div class="hero-overlay"></div>
-                            <div class="hero-content">
-                                <h1 class="text-3xl md:text-5xl font-extrabold mb-6 animate-fade-in-down">Empower Your Financial Future with Our Group Saving Chama!</h1>
-                                <p class="text-lg md:text-xl mb-8 max-w-3xl mx-auto animate-fade-in-up">
-                                    Join a thriving community focused on **savings pooling, accessible loans, and smart investment opportunities**.
-                                    Achieve your financial goals faster, together!
-                                </p>
-                                <button class="btn-primary text-lg md:text-xl transform hover:scale-105 transition-transform duration-300" onclick="window.renderPage('signup')">
-                                    Join Us Today!
-                                </button>
-                            </div>
-                        </div>
+                    <section class="text-center py-12 md:py-24 text-white rounded-lg shadow-xl attractive-hero">
+                        <h1 class="text-3xl md:text-5xl font-extrabold mb-6 animate-fade-in-down">Empower Your Financial Future with Our Group Saving Chama!</h1>
+                        <p class="text-lg md:text-xl mb-8 max-w-3xl mx-auto animate-fade-in-up">
+                            Join a thriving community focused on **savings pooling, accessible loans, and smart investment opportunities**.
+                            Achieve your financial goals faster, together!
+                        </p>
+                        <button class="btn-primary text-lg md:text-xl transform hover:scale-105 transition-transform duration-300" onclick="window.renderPage('signup')">
+                            Join Us Today!
+                        </button>
                     </section>
 
                     <section class="py-12 md:py-16">
@@ -748,7 +654,7 @@
 
                             <h2 class="2xl font-semibold text-maroon mb-4">Benefits of Joining</h2>
                             <ul class="list-disc list-inside text-gray-700 space-y-2">
-                                <li><strong>Financial Discipline:</strong> Encourages regular saving habits.</li>
+                                <li><strong>Financial Discipline:</b> Encourages regular saving habits.</li>
                                 <li><strong>Access to Capital:</strong> Provides a source of funds for personal projects or emergencies without complex bank procedures.</li>
                                 <li><strong>Investment Opportunities:</strong> Participate in larger investments than you might be able individually.</li>
                                 <li><strong>Networking:</strong> Connect with a supportive community and learn from diverse financial experiences.</li>
@@ -830,7 +736,7 @@
                                     <input type="email" id="signup-email" class="input-field" placeholder="you@example.com" required>
                                 </div>
                                 <div>
-                                    <label for="signup-phone" class="block text-gray-700 text-sm font-bold mb-2">Phone Number</label>
+                                    <label for="signup-phone" class="block text-700 text-sm font-bold mb-2">Phone Number</label>
                                     <input type="tel" id="signup-phone" class="input-field" placeholder="+254 7XX XXX XXX" required pattern="^\\+?\\d{10,14}$">
                                 </div>
                                 <div>
@@ -1450,7 +1356,7 @@
                     unsubscribeChat();
                 }
 
-                const chatCollectionRef = collection(db, `artifacts/${appId}/users/${currentUserId}/support_messages`);
+                const chatCollectionRef = collection(db, getPrivateCollectionPath(currentUserId, 'support_messages'));
                 const q = query(chatCollectionRef, orderBy('timestamp'));
 
                 unsubscribeChat = onSnapshot(q, (snapshot) => {
@@ -1480,7 +1386,7 @@
                 }
 
                 try {
-                    await addDoc(collection(db, `artifacts/${appId}/users/${currentUserId}/support_messages`), {
+                    await addDoc(collection(db, getPrivateCollectionPath(currentUserId, 'support_messages')), {
                         text: messageText,
                         timestamp: serverTimestamp(),
                         senderId: currentUserId,
@@ -1491,7 +1397,7 @@
 
                     // Simulate admin reply for demonstration
                     setTimeout(async () => {
-                        await addDoc(collection(db, `artifacts/${appId}/users/${currentUserId}/support_messages`), {
+                        await addDoc(collection(db, getPrivateCollectionPath(currentUserId, 'support_messages')), {
                             text: "Thank you for your message. Our support team will review it and get back to you shortly.",
                             timestamp: serverTimestamp(),
                             senderId: "admin",
@@ -1522,11 +1428,6 @@
                 // Close mobile menu if open
                 if (!mobileMenu.classList.contains('hidden')) {
                     window.toggleMobileMenu();
-                }
-
-                // Stop carousel if not on home page
-                if (pageName !== 'home') {
-                    stopImageCarousel();
                 }
 
                 // Redirect to login if trying to access dashboard and not logged in AND NOT VERIFIED
@@ -1570,8 +1471,6 @@
                     attachLoginEventListeners();
                 } else if (pageName === 'forgot-password') {
                     attachForgotPasswordEventListeners();
-                } else if (pageName === 'home') {
-                    startImageCarousel(); // Start carousel when home page is rendered
                 }
             }
 
@@ -1778,7 +1677,7 @@
                 // Unsubscribe from previous listener if exists
                 if (window.unsubscribeContributionHistory) window.unsubscribeContributionHistory();
 
-                const q = query(collection(db, `artifacts/${appId}/users/${currentUserId}/contributions`), orderBy('date', 'desc')); // Changed to 'date'
+                const q = query(collection(db, getPrivateCollectionPath(currentUserId, 'contributions')), orderBy('date', 'desc')); // Changed to 'date'
                 window.unsubscribeContributionHistory = onSnapshot(q, (snapshot) => {
                     tableBody.innerHTML = ''; // Clear existing rows
                     snapshot.forEach((doc) => {
@@ -1814,7 +1713,7 @@
                 // Unsubscribe from previous listener if exists
                 if (window.unsubscribeLoanHistory) window.unsubscribeLoanHistory();
 
-                const q = query(collection(db, `artifacts/${appId}/users/${currentUserId}/loans`), orderBy('dueDate', 'desc')); // Changed to 'dueDate'
+                const q = query(collection(db, getPrivateCollectionPath(currentUserId, 'loans')), orderBy('dueDate', 'desc')); // Changed to 'dueDate'
                 window.unsubscribeLoanHistory = onSnapshot(q, (snapshot) => {
                     tableBody.innerHTML = ''; // Clear existing rows
                     snapshot.forEach((doc) => {
@@ -1859,7 +1758,7 @@
                 let currentBalance = 0; // Simulate running balance
 
                 // Fetch Contributions
-                const contributionsSnapshot = await getDocs(query(collection(db, `artifacts/${appId}/users/${currentUserId}/contributions`), orderBy('date'))); // Changed to 'date'
+                const contributionsSnapshot = await getDocs(query(collection(db, getPrivateCollectionPath(currentUserId, 'contributions')), orderBy('date'))); // Changed to 'date'
                 contributionsSnapshot.forEach(doc => {
                     const data = doc.data();
                     transactions.push({
@@ -1872,7 +1771,7 @@
                 });
 
                 // Fetch Loans Issued
-                const loansSnapshot = await getDocs(query(collection(db, `artifacts/${appId}/users/${currentUserId}/loans`), orderBy('dueDate'))); // Changed to 'dueDate'
+                const loansSnapshot = await getDocs(query(collection(db, getPrivateCollectionPath(currentUserId, 'loans')), orderBy('dueDate'))); // Changed to 'dueDate'
                 loansSnapshot.forEach(doc => {
                     const data = doc.data();
                     transactions.push({
@@ -1895,7 +1794,7 @@
                 });
 
                 // Fetch Fines
-                const finesSnapshot = await getDocs(query(collection(db, `artifacts/${appId}/users/${currentUserId}/fines`), orderBy('dateIssued'))); // Changed to 'dateIssued'
+                const finesSnapshot = await getDocs(query(collection(db, getPrivateCollectionPath(currentUserId, 'fines')), orderBy('dateIssued'))); // Changed to 'dateIssued'
                 finesSnapshot.forEach(doc => {
                     const data = doc.data();
                     transactions.push({
@@ -1937,7 +1836,7 @@
                 // Unsubscribe from previous listener if exists
                 if (window.unsubscribeMeetings) window.unsubscribeMeetings();
 
-                const q = query(collection(db, `artifacts/${appId}/public/data/meetings`), orderBy('date'));
+                const q = query(collection(db, getPublicCollectionPath('meetings')), orderBy('date'));
                 window.unsubscribeMeetings = onSnapshot(q, (snapshot) => {
                     let htmlContent = `<p class="text-gray-700 mb-4">Stay updated with our Chama's meeting schedules and important announcements.</p><div class="space-y-4">`;
                     let hasMeetings = false;
@@ -1977,7 +1876,7 @@
                 // Unsubscribe from previous listener if exists
                 if (window.unsubscribeFines) window.unsubscribeFines();
 
-                const q = query(collection(db, `artifacts/${appId}/users/${currentUserId}/fines`), orderBy('dateIssued', 'desc')); // Changed to 'dateIssued'
+                const q = query(collection(db, getPrivateCollectionPath(currentUserId, 'fines')), orderBy('dateIssued', 'desc')); // Changed to 'dateIssued'
                 window.unsubscribeFines = onSnapshot(q, (snapshot) => {
                     tableBody.innerHTML = ''; // Clear existing rows
                     snapshot.forEach((doc) => {
@@ -2011,7 +1910,7 @@
                 // Unsubscribe from previous listener if exists
                 if (window.unsubscribeInvestments) window.unsubscribeInvestments();
 
-                const q = query(collection(db, `artifacts/${appId}/public/data/investments`), orderBy('createdAt', 'desc'));
+                const q = query(collection(db, getPublicCollectionPath('investments')), orderBy('createdAt', 'desc'));
                 window.unsubscribeInvestments = onSnapshot(q, (snapshot) => {
                     let htmlContent = `<p class="text-gray-700 mb-4">Explore and pledge contributions towards various group investment projects.</p><div class="space-y-6">`;
                     let hasInvestments = false;
@@ -2058,7 +1957,7 @@
                 // Unsubscribe from previous listener if exists
                 if (window.unsubscribePolls) window.unsubscribePolls();
 
-                const q = query(collection(db, `artifacts/${appId}/public/data/polls`), orderBy('createdAt', 'desc'));
+                const q = query(collection(db, getPublicCollectionPath('polls')), orderBy('createdAt', 'desc'));
                 window.unsubscribePolls = onSnapshot(q, async (snapshot) => {
                     let htmlContent = `<p class="text-gray-700 mb-4">Participate in important Chama decisions through secure online voting.</p><div class="space-y-6">`;
                     let hasPolls = false;
@@ -2126,7 +2025,7 @@
                 // Unsubscribe from previous listener if exists
                 if (window.unsubscribeAttendanceHistory) window.unsubscribeAttendanceHistory();
 
-                const q = query(collection(db, `artifacts/${appId}/users/${currentUserId}/attendance`), orderBy('date', 'desc')); // Changed to 'date'
+                const q = query(collection(db, getPrivateCollectionPath(currentUserId, 'attendance')), orderBy('date', 'desc')); // Changed to 'date'
                 window.unsubscribeAttendanceHistory = onSnapshot(q, (snapshot) => {
                     tableBody.innerHTML = ''; // Clear existing rows
                     snapshot.forEach((doc) => {
@@ -2159,7 +2058,7 @@
                 // Unsubscribe from previous listener if exists
                 if (window.unsubscribeDocuments) window.unsubscribeDocuments();
 
-                const q = query(collection(db, `artifacts/${appId}/public/data/documents`), orderBy('uploadedAt', 'desc'));
+                const q = query(collection(db, getPublicCollectionPath('documents')), orderBy('uploadedAt', 'desc'));
                 window.unsubscribeDocuments = onSnapshot(q, (snapshot) => {
                     let htmlContent = `<p class="text-gray-700 mb-4">Access important Chama documents securely.</p><div class="space-y-4">`;
                     let hasDocuments = false;
@@ -2207,7 +2106,7 @@
 
                     for (const userDocRef of usersSnapshot.docs) {
                         const userId = userDocRef.id;
-                        const userProfileRef = doc(db, `artifacts/${appId}/users/${userId}/user_profile`, userId);
+                        const userProfileRef = doc(db, getPrivateCollectionPath(userId, 'user_profile'), userId);
                         const userProfileDoc = await getDoc(userProfileRef);
                         if (userProfileDoc.exists()) {
                             totalContributions += userProfileDoc.data().contribution_balance || 0;
@@ -2218,7 +2117,7 @@
                     // For simplicity, let's sum up all 'amount' from all users' loans subcollections
                     for (const userDocRef of usersSnapshot.docs) {
                         const userId = userDocRef.id;
-                        const loansSnapshot = await getDocs(collection(db, `artifacts/${appId}/users/${userId}/loans`));
+                        const loansSnapshot = await getDocs(collection(db, getPrivateCollectionPath(userId, 'loans')));
                         loansSnapshot.forEach(loanDoc => {
                             totalLoansIssued += loanDoc.data().amount || 0;
                         });
@@ -2248,7 +2147,7 @@
                 // Unsubscribe from previous listener if exists
                 if (window.unsubscribeNotifications) window.unsubscribeNotifications();
 
-                const q = query(collection(db, `artifacts/${appId}/users/${currentUserId}/notifications`), orderBy('date', 'desc')); // Order by 'date'
+                const q = query(collection(db, getPrivateCollectionPath(currentUserId, 'notifications')), orderBy('date', 'desc')); // Order by 'date'
                 window.unsubscribeNotifications = onSnapshot(q, (snapshot) => {
                     let htmlContent = `<p class="text-gray-700 mb-4">Stay informed with important updates and alerts regarding your Chama activities.</p><div class="space-y-4">`;
                     let hasNotifications = false;
@@ -2278,6 +2177,7 @@
             }
 
             // Load Forum Posts (Mock for now, will fetch from Firestore if a 'forum_posts' collection is added)
+            // This function remains a mock as it was not part of the explicit Firestore schema from the prompt's context.
             function loadForumPosts() {
                 const forumPostsDiv = document.getElementById('forum-posts');
                 if (!forumPostsDiv) return;
@@ -2312,7 +2212,7 @@
             // Handle Record Attendance
             async function handleRecordAttendance(event) {
                 event.preventDefault();
-                const meetingId = document.getElementById('attendance-meeting-id').value.trim(); // Added
+                const meetingId = document.getElementById('attendance-meeting-id').value.trim();
                 const date = document.getElementById('attendance-date').value;
                 const time = document.getElementById('attendance-time').value;
 
@@ -2332,7 +2232,7 @@
                  }
 
                 try {
-                    await addDoc(collection(db, `artifacts/${appId}/users/${currentUserId}/attendance`), {
+                    await addDoc(collection(db, getPrivateCollectionPath(currentUserId, 'attendance')), {
                         memberId: currentUserId,
                         meetingId: meetingId || null, // Optional meetingId
                         date: new Date(`${date}T${time}`), // Storing date as Timestamp
@@ -2353,7 +2253,7 @@
                 event.preventDefault();
                 const amount = parseFloat(document.getElementById('contribution-amount').value);
                 const method = document.getElementById('payment-method').value;
-                const description = document.getElementById('contribution-description').value.trim(); // Added
+                const description = document.getElementById('contribution-description').value.trim();
 
                 if (isNaN(amount) || amount <= 0) {
                     showMessage("Please enter a valid amount.", "error");
@@ -2375,10 +2275,10 @@
                     return;
                 }
 
-                const userProfileRef = doc(db, `artifacts/${appId}/users/${currentUserId}/user_profile`, currentUserId);
+                const userProfileRef = doc(db, getPrivateCollectionPath(currentUserId, 'user_profile'), currentUserId);
                 try {
                     // Add contribution to sub-collection
-                    await addDoc(collection(db, `artifacts/${appId}/users/${currentUserId}/contributions`), {
+                    await addDoc(collection(db, getPrivateCollectionPath(currentUserId, 'contributions')), {
                         memberId: currentUserId,
                         amount: amount,
                         method: method,
@@ -2407,8 +2307,8 @@
             async function handleLoanRequest(event) {
                 event.preventDefault();
                 const amount = parseFloat(document.getElementById('loan-amount').value);
-                const interestRate = parseFloat(document.getElementById('loan-interest-rate').value); // Added
-                const dueDate = document.getElementById('loan-due-date').value; // Added
+                const interestRate = parseFloat(document.getElementById('loan-interest-rate').value);
+                const dueDate = document.getElementById('loan-due-date').value;
                 const plan = document.getElementById('repayment-plan').value;
                 const purpose = document.getElementById('loan-purpose').value.trim();
 
@@ -2416,11 +2316,11 @@
                     showMessage("Please enter a valid loan amount.", "error");
                     return;
                 }
-                if (isNaN(interestRate) || interestRate < 0) { // Validation for interestRate
+                if (isNaN(interestRate) || interestRate < 0) {
                      showMessage("Please enter a valid interest rate.", "error");
                      return;
                  }
-                 if (!dueDate) { // Validation for dueDate
+                 if (!dueDate) {
                      showMessage("Please select a due date.", "error");
                      return;
                  }
@@ -2445,16 +2345,16 @@
                 }
 
                 try {
-                    await addDoc(collection(db, `artifacts/${appId}/users/${currentUserId}/loans`), {
+                    await addDoc(collection(db, getPrivateCollectionPath(currentUserId, 'loans')), {
                         memberId: currentUserId,
                         amount: amount,
-                        interestRate: interestRate, // Added interestRate
+                        interestRate: interestRate,
                         dueDate: new Date(dueDate), // Storing dueDate as Timestamp
                         repaymentPlan: plan,
                         purpose: purpose,
                         status: 'pending', // Pending admin approval
                         timestamp: serverTimestamp(), // Keep creation timestamp
-                        repaidAmount: 0 // Changed to 'repaidAmount'
+                        repaidAmount: 0
                     });
                     showMessage(`Loan request for KSh ${amount.toFixed(2)} (${plan}, Purpose: ${purpose}) submitted successfully. Awaiting admin approval.`, "success");
                     document.getElementById('loan-request-form').reset(); // Clear form
@@ -2467,10 +2367,10 @@
             // Handle Update Profile
             async function handleUpdateProfile(event) {
                 event.preventDefault();
-                const name = document.getElementById('profile-name').value.trim(); // Changed id to 'profile-name' and variable to 'name'
+                const name = document.getElementById('profile-name').value.trim();
                 const phone = document.getElementById('profile-phone').value.trim();
                 const nationalId = document.getElementById('profile-national-id').value.trim();
-                const profilePicUrl = document.getElementById('profile-pic-url').value.trim(); // Added
+                const profilePicUrl = document.getElementById('profile-pic-url').value.trim();
 
                 if (!name || !phone || !nationalId) {
                     showMessage("Name, phone, and national ID are required.", "error");
@@ -2487,13 +2387,13 @@
                     return;
                 }
 
-                const userProfileRef = doc(db, `artifacts/${appId}/users/${currentUserId}/user_profile`, currentUserId);
+                const userProfileRef = doc(db, getPrivateCollectionPath(currentUserId, 'user_profile'), currentUserId);
                 try {
                     await updateDoc(userProfileRef, {
-                        name: name, // Changed to 'name'
+                        name: name,
                         phone: phone,
                         nationalId: nationalId,
-                        profilePicUrl: profilePicUrl // Added profilePicUrl
+                        profilePicUrl: profilePicUrl
                     });
                     showMessage("Profile updated successfully!", "success");
                     currentUserData.name = name; // Update local data
@@ -2511,7 +2411,7 @@
             // Handle Signup
             async function handleSignup(event) {
                 event.preventDefault();
-                const name = document.getElementById('signup-name').value.trim(); // Changed id to 'signup-name' and variable to 'name'
+                const name = document.getElementById('signup-name').value.trim();
                 const email = document.getElementById('signup-email').value.trim();
                 const phone = document.getElementById('signup-phone').value.trim();
                 const nationalId = document.getElementById('signup-national-id').value.trim();
@@ -2545,10 +2445,10 @@
                     showMessage("Account created successfully! A verification email has been sent to your inbox. Please verify your email to log in.", "success");
 
 
-                    // Store additional user details in Firestore in artifacts/{appId}/users/{user.uid}/user_profile/{user.uid}
-                    const userProfileRef = doc(db, `artifacts/${appId}/users/${user.uid}/user_profile`, user.uid);
+                    // Store additional user details in Firestore
+                    const userProfileRef = doc(db, getPrivateCollectionPath(user.uid, 'user_profile'), user.uid);
                     await setDoc(userProfileRef, {
-                        name: name, // Changed to 'name'
+                        name: name,
                         email: email,
                         phone: phone,
                         nationalId: nationalId,
@@ -2557,13 +2457,13 @@
                         loan_balance: 0,
                         next_meeting_date: "To be announced",
                         status: "pending", // Set initial status as pending approval
-                        profilePicUrl: "", // Added profilePicUrl
+                        profilePicUrl: "",
                     });
                     console.log("User profile data saved to Firestore successfully.");
 
 
                     // Add a welcome notification
-                    await addDoc(collection(db, `artifacts/${appId}/users/${user.uid}/notifications`), {
+                    await addDoc(collection(db, getPrivateCollectionPath(user.uid, 'notifications')), {
                         title: "Welcome to Prince Alex Digital Chama!",
                         message: "Your account has been created successfully. Please verify your email address.",
                         date: serverTimestamp(),
@@ -2701,7 +2601,7 @@
 
 
                 // Fetch real-time data from Firestore
-                const userProfileRef = doc(db, `artifacts/${appId}/users/${currentUserId}/user_profile`, currentUserId);
+                const userProfileRef = doc(db, getPrivateCollectionPath(currentUserId, 'user_profile'), currentUserId);
                 // Using onSnapshot for real-time updates on dashboard balances and profile data
                 if (window.unsubscribeUserProfile) {
                     window.unsubscribeUserProfile();
@@ -2777,12 +2677,12 @@
                     return;
                 }
 
-                const title = document.getElementById('meeting-title').value.trim(); // Added
+                const title = document.getElementById('meeting-title').value.trim();
                 const date = document.getElementById('meeting-date').value;
                 const time = document.getElementById('meeting-time').value;
                 const location = document.getElementById('meeting-location').value.trim();
-                const description = document.getElementById('meeting-description').value.trim(); // Renamed from agenda
-                const type = document.getElementById('meeting-type').value; // Added
+                const description = document.getElementById('meeting-description').value.trim();
+                const type = document.getElementById('meeting-type').value;
 
                 if (!title || !date || !time || !location || !description || !type) {
                     showMessage("All meeting fields are required.", "error");
@@ -2790,13 +2690,13 @@
                 }
 
                 try {
-                    await addDoc(collection(db, `artifacts/${appId}/public/data/meetings`), {
-                        title: title, // Added title
+                    await addDoc(collection(db, getPublicCollectionPath('meetings')), {
+                        title: title,
                         date: new Date(`${date}T${time}`), // Storing date as Timestamp
                         time: time,
                         location: location,
-                        description: description, // Renamed from agenda
-                        type: type, // Added type
+                        description: description,
+                        type: type,
                         createdAt: serverTimestamp()
                     });
                     showMessage("Meeting added successfully!", "success");
@@ -2816,8 +2716,8 @@
                     return;
                 }
 
-                const title = document.getElementById('investment-title').value.trim(); // Changed to 'title'
-                const amount = parseFloat(document.getElementById('investment-amount').value); // Changed to 'amount'
+                const title = document.getElementById('investment-title').value.trim();
+                const amount = parseFloat(document.getElementById('investment-amount').value);
                 const description = document.getElementById('investment-description').value.trim();
 
                 if (!title || isNaN(amount) || amount <= 0 || !description) {
@@ -2826,9 +2726,9 @@
                 }
 
                 try {
-                    await addDoc(collection(db, `artifacts/${appId}/public/data/investments`), {
-                        title: title, // Changed to 'title'
-                        amount: amount, // Changed to 'amount' (for goal)
+                    await addDoc(collection(db, getPublicCollectionPath('investments')), {
+                        title: title,
+                        amount: amount,
                         description: description,
                         pledged: 0, // Initial pledged amount
                         estimatedReturn: "N/A", // Placeholder
@@ -2854,10 +2754,13 @@
                      return;
                  }
 
-                const investmentRef = doc(db, `artifacts/${appId}/public/data/investments`, investmentId);
-                const userProfileRef = doc(db, `artifacts/${appId}/users/${currentUserId}/user_profile`, currentUserId);
-                const userPledgeCollectionRef = collection(db, `artifacts/${appId}/users/${currentUserId}/investment_pledges`);
-
+                const investmentRef = doc(db, getPublicCollectionPath('investments'), investmentId);
+                const userProfileRef = doc(db, getPrivateCollectionPath(currentUserId, 'user_profile'), currentUserId);
+                // Note: The prompt mentioned 'investment_pledges' as a private collection directly under user,
+                // but the current implementation adds a specific document for each pledge.
+                // The current structure of updating `currentUserData.investment_pledges` is for local tracking.
+                // If a separate `investment_pledges` subcollection for each user is desired for detailed logs:
+                // const userPledgeCollectionRef = collection(db, getPrivateCollectionPath(currentUserId, 'investment_pledges'));
 
                 try {
                     // Check if user has already pledged to this investment using the local currentUserData
@@ -2866,15 +2769,7 @@
                         return;
                     }
 
-                    // 1. Add individual pledge record for the user
-                    await addDoc(userPledgeCollectionRef, {
-                        memberId: currentUserId, // Explicitly linking to member
-                        investmentId: investmentId,
-                        amount: amount,
-                        timestamp: serverTimestamp()
-                    });
-
-                    // 2. Atomically update the total pledged amount on the main investment document
+                    // Atomically update the total pledged amount on the main investment document
                     // Use a transaction to ensure atomicity for concurrent updates
                     const transactionResult = await runTransaction(db, async (transaction) => {
                         const sfDoc = await transaction.get(investmentRef);
@@ -2885,7 +2780,7 @@
                         transaction.update(investmentRef, { pledged: newPledged });
                     });
 
-                    // 3. Update user profile to record that they have pledged to this investment
+                    // Update user profile to record that they have pledged to this investment
                     const updatedUserPledges = { ...currentUserData.investment_pledges, [investmentId]: amount };
                     await updateDoc(userProfileRef, {
                         investment_pledges: updatedUserPledges
@@ -2909,7 +2804,7 @@
                     return;
                 }
 
-                const title = document.getElementById('poll-title').value.trim(); // Changed to 'title'
+                const title = document.getElementById('poll-title').value.trim();
                 const optionsInput = document.getElementById('poll-options').value.trim();
 
                 if (!title || !optionsInput) {
@@ -2924,16 +2819,16 @@
                 }
 
                 // Initialize results object
-                const votes = {}; // Changed to 'votes'
+                const votes = {};
                 optionsArray.forEach(option => {
                     votes[option] = 0;
                 });
 
                 try {
-                    await addDoc(collection(db, `artifacts/${appId}/public/data/polls`), {
-                        title: title, // Changed to 'title'
+                    await addDoc(collection(db, getPublicCollectionPath('polls')), {
+                        title: title,
                         options: optionsArray,
-                        votes: votes, // Changed to 'votes'
+                        votes: votes,
                         createdAt: serverTimestamp(),
                         status: 'active'
                     });
@@ -2957,12 +2852,12 @@
                     return;
                 }
 
-                const pollRef = doc(db, `artifacts/${appId}/public/data/polls`, pollId);
-                const userProfileRef = doc(db, `artifacts/${appId}/users/${currentUserId}/user_profile`, currentUserId);
+                const pollRef = doc(db, getPublicCollectionPath('polls'), pollId);
+                const userProfileRef = doc(db, getPrivateCollectionPath(currentUserId, 'user_profile'), currentUserId);
 
                 try {
                     // Check if user has already voted for this poll from local currentUserData
-                    const existingUserVotes = currentUserData.votes || {}; // Renamed from existingVotes for clarity
+                    const existingUserVotes = currentUserData.votes || {};
                     if (existingUserVotes[pollId]) {
                         showMessage("You have already voted in this poll.", "error");
                         return;
@@ -2974,13 +2869,13 @@
                         if (!sfDoc.exists()) {
                             throw "Poll document does not exist!";
                         }
-                        const newVotes = { ...sfDoc.data().votes }; // Changed to 'votes'
+                        const newVotes = { ...sfDoc.data().votes };
                         newVotes[option] = (newVotes[option] || 0) + 1;
-                        transaction.update(pollRef, { votes: newVotes }); // Changed to 'votes'
+                        transaction.update(pollRef, { votes: newVotes });
                     });
 
                     // Record user's vote in their profile
-                    existingUserVotes[pollId] = option; // Updated variable name
+                    existingUserVotes[pollId] = option;
                     await updateDoc(userProfileRef, {
                         votes: existingUserVotes
                     });
@@ -3002,8 +2897,8 @@
                     return;
                 }
 
-                const title = document.getElementById('document-title').value.trim(); // Changed to 'title'
-                const fileUrl = document.getElementById('document-file-url').value.trim(); // Changed to 'fileUrl'
+                const title = document.getElementById('document-title').value.trim();
+                const fileUrl = document.getElementById('document-file-url').value.trim();
 
                 if (!title || !fileUrl) {
                     showMessage("Document title and file URL are required.", "error");
@@ -3011,9 +2906,9 @@
                 }
 
                 try {
-                    await addDoc(collection(db, `artifacts/${appId}/public/data/documents`), {
-                        title: title, // Changed to 'title'
-                        fileUrl: fileUrl, // Changed to 'fileUrl'
+                    await addDoc(collection(db, getPublicCollectionPath('documents')), {
+                        title: title,
+                        fileUrl: fileUrl,
                         uploadedBy: currentUserName || currentUserId,
                         uploadedAt: serverTimestamp()
                     });
@@ -3074,4 +2969,3 @@
     </script>
 </body>
 </html>
-
