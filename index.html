@@ -70,14 +70,36 @@
             border-radius: 8px;
             z-index: 1000;
             opacity: 0;
-            transition: opacity 0.5s ease-in-out;
+            visibility: hidden; /* Start hidden */
+            transition: opacity 0.5s ease-in-out, visibility 0.5s ease-in-out;
             box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+            display: flex; /* Use flexbox to align message and close button */
+            align-items: center;
+            justify-content: space-between;
         }
         .message-box.error {
             background-color: #f44336; /* Red for error */
         }
         .message-box.show {
             opacity: 1;
+            visibility: visible;
+        }
+        .message-box-content {
+            flex-grow: 1;
+            padding-right: 10px; /* Space between text and button */
+        }
+        .message-box-close {
+            background: none;
+            border: none;
+            color: white;
+            font-size: 1.2rem;
+            cursor: pointer;
+            padding: 5px;
+            border-radius: 50%;
+            transition: background-color 0.2s;
+        }
+        .message-box-close:hover {
+            background-color: rgba(255, 255, 255, 0.2);
         }
         /* Specific styles for scrollable sections in dashboard */
         .scroll-y {
@@ -315,7 +337,12 @@
     </footer>
 
     <!-- Message Box -->
-    <div id="message-box" class="message-box"></div>
+    <div id="message-box" class="message-box">
+        <span id="message-box-content" class="message-box-content"></span>
+        <button id="message-box-close" class="message-box-close">
+            <i class="fas fa-times"></i>
+        </button>
+    </div>
 
     <!-- Floating Chat Button -->
     <button class="chat-button" id="chat-button">
@@ -396,13 +423,19 @@
             // Message Box function
             function showMessage(message, type = 'success') {
                 const msgBox = document.getElementById('message-box');
-                msgBox.textContent = message;
+                const msgBoxContent = document.getElementById('message-box-content');
+                msgBoxContent.textContent = message;
                 msgBox.className = `message-box ${type}`; // Reset classes
                 setTimeout(() => msgBox.classList.add('show'), 10); // Trigger transition
-                setTimeout(() => {
-                    msgBox.classList.remove('show');
-                    setTimeout(() => msgBox.className = 'message-box', 500); // Hide after transition
-                }, 3000); // Message visible for 3 seconds
+                // Message will now stay until dismissed by the user clicking the close button
+            }
+
+            // Function to hide the message box
+            function hideMessageBox() {
+                const msgBox = document.getElementById('message-box');
+                msgBox.classList.remove('show');
+                // Give it a moment to transition out before resetting classes
+                setTimeout(() => msgBox.className = 'message-box', 500);
             }
 
             // Function to update the background image for the carousel
@@ -482,6 +515,7 @@
                     // Check if email is verified
                     if (!user.emailVerified) {
                         console.warn("User is logged in but email is not verified. Logging out.");
+                        // Use showMessage to display the verification prompt on screen
                         showMessage("Please verify your email address to access the dashboard. Check your inbox for a verification link.", "error");
                         await signOut(auth); // Log out the user if email is not verified
                         window.renderPage('login'); // Redirect to login
@@ -1262,6 +1296,7 @@
             const chatInput = document.getElementById('chat-input');
             const chatSendButton = document.getElementById('chat-send-button');
             const chatMessagesDiv = document.getElementById('chat-messages');
+            const messageBoxCloseButton = document.getElementById('message-box-close'); // Get the new close button
 
             let dashboardSubpageContent = null; // Will be initialized when dashboard is rendered
 
@@ -1271,6 +1306,10 @@
             }
 
             hamburgerMenu.addEventListener('click', window.toggleMobileMenu);
+
+            // Add event listener for the new message box close button
+            messageBoxCloseButton.addEventListener('click', hideMessageBox);
+
 
             // Chat Modal functions
             function openChatModal() {
