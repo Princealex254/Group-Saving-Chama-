@@ -119,12 +119,58 @@
             background-color: var(--primary-maroon);
             color: var(--secondary-white);
         }
-        /* Styles for the dynamic background carousel */
-        #home-hero-background-carousel {
-            transition: background-image 1s ease-in-out; /* Smooth transition between images */
-            background-size: cover;
-            background-position: center;
+        /* Styles for the dynamic background carousel using <img> tags */
+        .hero {
+            position: relative;
+            min-height: 400px; /* Adjust as needed */
+            overflow: hidden;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            border-radius: 0.5rem; /* Matches rounded-lg on section */
+            box-shadow: 0 10px 15px rgba(0, 0, 0, 0.1); /* Matches shadow-xl */
         }
+
+        .hero-background-image {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: cover; /* Ensures images cover the area without distortion */
+            opacity: 0;
+            transition: opacity 1s ease-in-out; /* Smooth transition between images */
+            z-index: 1; /* Below overlay and content */
+        }
+
+        .hero-background-image.active {
+            opacity: 1;
+            z-index: 2; /* Bring active image forward */
+        }
+
+        .hero-overlay {
+            position: absolute;
+            inset: 0;
+            background-color: rgba(0, 0, 0, 0.5); /* Semi-transparent overlay */
+            z-index: 3; /* Above images, below content */
+        }
+
+        .hero-content {
+            position: relative;
+            z-index: 4; /* Above everything */
+            text-align: center;
+            color: white;
+            padding: 1.5rem; /* Matches py-12 md:py-24 p-6 on section */
+            /* Replicate existing section padding into hero-content to maintain spacing */
+            padding-top: 3rem; /* equivalent to py-12 */
+            padding-bottom: 3rem;
+        }
+
+        /* Adjusting existing section padding for hero structure */
+        .home-section {
+            padding: 0; /* Remove padding from section itself, it's now handled by .hero-content */
+        }
+
 
         /* Floating Chat Button */
         .chat-button {
@@ -411,11 +457,11 @@
             // IMPORTANT: Replace these placeholder URLs with the actual public URLs of your hosted images.
             // Images for websites must be hosted online (e.g., Firebase Storage, Imgur, your own server)
             // as local file paths (like C:/Users/...) cannot be accessed by web browsers due to security restrictions.
-            const imageArray = [
-                'https://placehold.co/1200x600/800000/ffffff?text=Image+One',
-                'https://placehold.co/1200x600/800000/ffffff?text=Image+Two',
-                'https://placehold.co/1200x600/800000/ffffff?text=Image+Three',
-                'https://placehold.co/1200x600/800000/ffffff?text=Image+Four'
+            const imageUrls = [
+                'https://placehold.co/1200x600/800000/ffffff?text=Image+One',      // Corresponds to image.jpg
+                'https://placehold.co/1200x600/800000/ffffff?text=Image+Two',      // Corresponds to image1.jpg
+                'https://placehold.co/1200x600/800000/ffffff?text=Image+Three',    // Corresponds to image2.jpg
+                'https://placehold.co/1200x600/800000/ffffff?text=Image+Four'      // Corresponds to image3.jpg
             ];
             let currentImageIndex = 0;
             let carouselIntervalId; // To store the interval ID for clearing
@@ -438,13 +484,19 @@
                 setTimeout(() => msgBox.className = 'message-box', 500);
             }
 
-            // Function to update the background image for the carousel
+            // Function to update the background image for the carousel (now toggling active class)
             function updateHeroBackground() {
-                const heroBackground = document.getElementById('home-hero-background-carousel');
-                if (heroBackground) {
-                    heroBackground.style.backgroundImage = `url('${imageArray[currentImageIndex]}')`;
-                    currentImageIndex = (currentImageIndex + 1) % imageArray.length;
-                }
+                const images = document.querySelectorAll('.hero-background-image');
+                if (images.length === 0) return;
+
+                // Remove 'active' from current image
+                images[currentImageIndex].classList.remove('active');
+
+                // Move to the next image
+                currentImageIndex = (currentImageIndex + 1) % images.length;
+
+                // Add 'active' to the new current image
+                images[currentImageIndex].classList.add('active');
             }
 
             // Function to start the image carousel
@@ -453,7 +505,18 @@
                 if (carouselIntervalId) {
                     clearInterval(carouselIntervalId);
                 }
-                updateHeroBackground(); // Set initial background
+                // Ensure first image is active initially
+                const images = document.querySelectorAll('.hero-background-image');
+                if (images.length > 0) {
+                    images.forEach((img, index) => {
+                        if (index === 0) {
+                            img.classList.add('active');
+                        } else {
+                            img.classList.remove('active');
+                        }
+                    });
+                    currentImageIndex = 0; // Reset index to start from the first image
+                }
                 carouselIntervalId = setInterval(updateHeroBackground, 7000); // Change image every 7 seconds
             }
 
@@ -621,18 +684,23 @@
             // Page Content Definitions
             const pages = {
                 home: `
-                    <section class="text-center py-12 md:py-24 text-white rounded-lg shadow-xl relative overflow-hidden">
-                        <div id="home-hero-background-carousel" class="absolute inset-0"></div>
-                        <div class="absolute inset-0 bg-black opacity-50"></div> <!-- Overlay for text readability -->
-                        <div class="relative z-10">
-                            <h1 class="text-3xl md:text-5xl font-extrabold mb-6 animate-fade-in-down">Empower Your Financial Future with Our Group Saving Chama!</h1>
-                            <p class="text-lg md:text-xl mb-8 max-w-3xl mx-auto animate-fade-in-up">
-                                Join a thriving community focused on **savings pooling, accessible loans, and smart investment opportunities**.
-                                Achieve your financial goals faster, together!
-                            </p>
-                            <button class="btn-primary text-lg md:text-xl transform hover:scale-105 transition-transform duration-300" onclick="window.renderPage('signup')">
-                                Join Us Today!
-                            </button>
+                    <section class="text-center py-12 md:py-24 text-white rounded-lg shadow-xl relative overflow-hidden home-section">
+                        <div class="hero">
+                            <img src="${imageUrls[0]}" alt="Image of Savings Group" class="hero-background-image active">
+                            <img src="${imageUrls[1]}" alt="Image of Community Finance" class="hero-background-image">
+                            <img src="${imageUrls[2]}" alt="Image of Invest Together" class="hero-background-image">
+                            <img src="${imageUrls[3]}" alt="Image of image3" class="hero-background-image">
+                            <div class="hero-overlay"></div>
+                            <div class="hero-content">
+                                <h1 class="text-3xl md:text-5xl font-extrabold mb-6 animate-fade-in-down">Empower Your Financial Future with Our Group Saving Chama!</h1>
+                                <p class="text-lg md:text-xl mb-8 max-w-3xl mx-auto animate-fade-in-up">
+                                    Join a thriving community focused on **savings pooling, accessible loans, and smart investment opportunities**.
+                                    Achieve your financial goals faster, together!
+                                </p>
+                                <button class="btn-primary text-lg md:text-xl transform hover:scale-105 transition-transform duration-300" onclick="window.renderPage('signup')">
+                                    Join Us Today!
+                                </button>
+                            </div>
                         </div>
                     </section>
 
@@ -2668,6 +2736,7 @@
                         contributionBalance.textContent = "KSh 0.00";
                         loanBalance.textContent = "KSh 0.00";
                         nextMeetingDate.textContent = "To be announced";
+                        dashboardUserEmail.textContent = auth.currentUser.email || "N/A";
                         dashboardUserPhone.textContent = "N/A";
                         dashboardUserNationalId.textContent = "N/A";
                         showMessage("Your profile data is missing or incomplete. Please use the 'Update Profile' section.", "error");
