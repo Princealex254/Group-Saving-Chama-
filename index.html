@@ -418,6 +418,7 @@
 
             // Firebase Helper Functions
             // These functions create correct Firestore collection paths based on app ID and user ID.
+            // Firestore collections are implicitly created when the first document is added to them.
             function getPublicCollectionPath(collectionName) {
               return `artifacts/${appId}/public/data/${collectionName}`;
             }
@@ -491,16 +492,8 @@
                     currentUserId = user.uid;
                     console.log(`onAuthStateChanged: User logged in with UID: ${user.uid}`);
 
-
-                    // Check if email is verified
-                    if (!user.emailVerified) {
-                        console.warn("User is logged in but email is not verified. Logging out.");
-                        // Use showMessage to display the verification prompt on screen
-                        showMessage("Please verify your email address to access the dashboard. Check your inbox for a verification link.", "error");
-                        await signOut(auth); // Log out the user if email is not verified
-                        window.renderPage('login'); // Redirect to login
-                        return; // Stop further execution
-                    }
+                    // Do NOT log out the user immediately if email is not verified.
+                    // Instead, keep them authenticated and restrict access based on emailVerified and profile status.
 
                     dashboardLink.classList.remove('hidden');
                     logoutButton.classList.remove('hidden');
@@ -523,9 +516,8 @@
                             console.log("User profile fetched successfully:", currentUserData);
                             currentUserName = currentUserData.name || user.email;
                         } else {
-                            // Profile document missing, but don't log out the user.
-                            // The user is authenticated via Firebase Auth, just their Firestore profile data might be missing.
-                            console.warn("User exists in Firebase Auth but no Firestore profile found. Displaying default/empty profile data.");
+                            // Profile document missing (e.g., first login after signup, but Firestore write failed or delayed).
+                            console.warn("User exists in Firebase Auth but no Firestore profile found. Creating default profile data.");
                             currentUserData = {
                                 name: user.email,
                                 email: user.email,
@@ -534,16 +526,18 @@
                                 contribution_balance: 0,
                                 loan_balance: 0,
                                 next_meeting_date: "To be announced",
-                                status: "pending", // Default to pending if profile wasn't fully created
+                                status: "pending", // Default to pending
                                 profilePicUrl: ""
                             };
                             currentUserName = user.email; // Use email as name fallback
-                            showMessage("Your profile data is incomplete. Please update your profile from the dashboard.", "error");
+                            // Attempt to save default profile data if it's missing
+                            await setDoc(userProfileRef, currentUserData, { merge: true }); // Use merge:true to avoid overwriting if partial data exists
+                            showMessage("Your profile data was incomplete and has been initialized. Please update your profile from the dashboard.", "error");
                         }
                     } catch (error) {
-                        console.error("Error fetching user profile from Firestore (might be permission error or network issue):", error);
-                        // If there's an error fetching, still let them into dashboard but with a warning
-                        currentUserData = {
+                        console.error("Error fetching or initializing user profile from Firestore:", error);
+                        // If there's an error fetching or initializing, still proceed but with a warning
+                        currentUserData = { // Ensure currentUserData is populated even on error
                             name: user.email,
                             email: user.email,
                             phone: "N/A",
@@ -555,8 +549,9 @@
                             profilePicUrl: ""
                         };
                         currentUserName = user.email;
-                        showMessage("Failed to retrieve your full profile. Please refresh or update your profile from the dashboard.", "error");
+                        showMessage("Failed to retrieve or set your full profile. Please refresh or update your profile from the dashboard.", "error");
                     }
+
                     // If currently on dashboard or if we should redirect to dashboard (after successful login)
                     if (window.location.hash.includes('dashboard') || window.location.hash.includes('login') || window.location.hash === '#home' || window.location.hash === '') {
                         window.renderPage('dashboard');
@@ -658,7 +653,7 @@
                                 <li><strong>Access to Capital:</strong> Provides a source of funds for personal projects or emergencies without complex bank procedures.</li>
                                 <li><strong>Investment Opportunities:</strong> Participate in larger investments than you might be able individually.</li>
                                 <li><strong>Networking:</strong> Connect with a supportive community and learn from diverse financial experiences.</li>
-                                <li><strong>Financial Literacy:</strong> Learn about managing finances, budgeting, and investment strategies.</li>
+                                <li><strong>Financial Literacy:</b> Learn about managing finances, budgeting, and investment strategies.</li>
                             </ul>
                         </div>
                     </section>
@@ -1498,15 +1493,24 @@
                     </div>
                 `;
 
-                // Check if user is approved before rendering dashboard subpages (excluding notifications, view-statements, update-profile)
-                if (currentUserData.status !== 'approved' && subpageName !== 'notifications' && subpageName !== 'view-statements' && subpageName !== 'update-profile') {
-                     showMessage("This service is locked until your membership is approved by an admin.", "error");
+                // Check if user's email is verified OR if the service is allowed for unverified users
+                // AND check if user is approved before rendering dashboard subpages (excluding notifications, view-statements, update-profile, and now signup/login related)
+                const isEmailVerified = auth.currentUser ? auth.currentUser.emailVerified : false;
+                const isProfileApproved = currentUserData.status === 'approved';
+                const isAllowedForUnverified = ['notifications', 'view-statements', 'update-profile'].includes(subpageName);
+
+                if (!isEmailVerified || (!isProfileApproved && !isAllowedForUnverified)) {
+                     // More specific message based on what's missing
+                    if (!isEmailVerified) {
+                        showMessage("Please verify your email address to access this feature.", "error");
+                    } else if (!isProfileApproved) {
+                        showMessage("This service is locked until your membership is approved by an admin.", "error");
+                    }
                      if(dashboardSubpageContent) {
                         dashboardSubpageContent.innerHTML = lockedServiceContent;
                      }
                      return;
                 }
-
 
                 if (dashboardSubpageContent && dashboardSubpages[subpageName]) {
                     dashboardSubpageContent.innerHTML = dashboardSubpages[subpageName];
@@ -2226,8 +2230,9 @@
                     window.renderPage('login');
                     return;
                 }
-                if (currentUserData.status !== 'approved') {
-                     showMessage("Your account is pending approval. Cannot record attendance yet.", "error");
+                // Check for both email verification and profile approval for sensitive actions
+                if (!auth.currentUser.emailVerified || currentUserData.status !== 'approved') {
+                     showMessage("Your account is not yet fully activated. Please verify your email and await admin approval to record attendance.", "error");
                      return;
                  }
 
@@ -2269,9 +2274,9 @@
                     window.renderPage('login');
                     return;
                 }
-
-                if (currentUserData.status !== 'approved') {
-                    showMessage("Your account is pending approval. You cannot make contributions yet.", "error");
+                // Check for both email verification and profile approval for sensitive actions
+                if (!auth.currentUser.emailVerified || currentUserData.status !== 'approved') {
+                    showMessage("Your account is not yet fully activated. Please verify your email and await admin approval to make contributions.", "error");
                     return;
                 }
 
@@ -2338,9 +2343,9 @@
                     window.renderPage('login');
                     return;
                 }
-
-                if (currentUserData.status !== 'approved') {
-                    showMessage("Your account is pending approval. You cannot request loans yet.", "error");
+                // Check for both email verification and profile approval for sensitive actions
+                if (!auth.currentUser.emailVerified || currentUserData.status !== 'approved') {
+                    showMessage("Your account is not yet fully activated. Please verify your email and await admin approval to request loans.", "error");
                     return;
                 }
 
@@ -2386,6 +2391,12 @@
                     window.renderPage('login');
                     return;
                 }
+                // Update profile can be done even if not approved, but email must be verified.
+                if (!auth.currentUser.emailVerified) {
+                    showMessage("Please verify your email address to update your profile.", "error");
+                    return;
+                }
+
 
                 const userProfileRef = doc(db, getPrivateCollectionPath(currentUserId, 'user_profile'), currentUserId);
                 try {
@@ -2439,13 +2450,8 @@
                     const userCredential = await createUserWithEmailAndPassword(auth, email, password);
                     const user = userCredential.user;
 
-                    // Send email verification
-                    await sendEmailVerification(user);
-                    console.log("Verification email sent to:", user.email);
-                    showMessage("Account created successfully! A verification email has been sent to your inbox. Please verify your email to log in.", "success");
-
-
-                    // Store additional user details in Firestore
+                    // Store additional user details in Firestore IMMEDIATELY AFTER AUTH ACCOUNT CREATION
+                    // This ensures profile data is saved even if user doesn't verify email immediately.
                     const userProfileRef = doc(db, getPrivateCollectionPath(user.uid, 'user_profile'), user.uid);
                     await setDoc(userProfileRef, {
                         name: name,
@@ -2461,18 +2467,23 @@
                     });
                     console.log("User profile data saved to Firestore successfully.");
 
+                    // Send email verification AFTER profile is saved
+                    await sendEmailVerification(user);
+                    console.log("Verification email sent to:", user.email);
+                    showMessage("Account created successfully! A verification email has been sent to your inbox. Please verify your email to log in.", "success");
+
 
                     // Add a welcome notification
                     await addDoc(collection(db, getPrivateCollectionPath(user.uid, 'notifications')), {
                         title: "Welcome to Prince Alex Digital Chama!",
-                        message: "Your account has been created successfully. Please verify your email address.",
+                        message: "Your account has been created successfully. Please verify your email address to access full features.",
                         date: serverTimestamp(),
                         status: "unread"
                     });
                     console.log("Welcome notification added.");
 
 
-                    window.renderPage('login'); // Redirect to login page, user can't access dashboard until verified
+                    window.renderPage('login'); // Redirect to login page, user is authenticated but not fully authorized for all features yet
                 } catch (error) {
                     console.error("Error signing up:", error);
                     let errorMessage = "Failed to create account. Please try again.";
@@ -2503,25 +2514,20 @@
                     const user = userCredential.user;
                     console.log("Firebase Auth login successful for user:", user.uid);
 
-
-                    // Check if email is verified after successful sign-in
-                    if (!user.emailVerified) {
-                        showMessage("Please verify your email address before logging in. A verification link was sent to your email.", "error");
-                        await signOut(auth); // Log out the user immediately if email is not verified
-                        return;
-                    }
-
-                    showMessage("Login successful! Welcome to your dashboard.", "success");
-                    // The onAuthStateChanged listener will now handle the redirection to dashboard
-                    // based on user.emailVerified being true and will not log out if profile is incomplete.
+                    // User is now authenticated. The onAuthStateChanged listener will check email verification status
+                    // and retrieve/initialize their Firestore profile, then render the dashboard.
+                    showMessage("Login successful! Redirecting to dashboard...", "success");
+                    // No explicit redirect here, onAuthStateChanged handles it.
 
                 } catch (error) {
                     console.error("Error logging in:", error);
                     let errorMessage = "Failed to log in. Please check your credentials.";
-                    if (error.code === 'auth/invalid-credential') { // Covers auth/wrong-password and auth/user-not-found
+                    if (error.code === 'auth/invalid-credential' || error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password') {
                         errorMessage = "Invalid email or password.";
                     } else if (error.code === 'auth/invalid-email') {
                         errorMessage = "Invalid email format.";
+                    } else if (error.code === 'auth/user-disabled') {
+                        errorMessage = "Your account has been disabled. Please contact support.";
                     }
                     showMessage(errorMessage, "error");
                 }
@@ -2619,12 +2625,14 @@
                         dashboardUserPhone.textContent = currentUserData.phone || "N/A";
                         dashboardUserNationalId.textContent = currentUserData.nationalId || "N/A";
 
-                        // Also check if status is pending and show a message
-                        if (currentUserData.status === 'pending') {
-                            showMessage("Your account is pending admin approval. Some features may be locked.", "error");
-                        } else if (currentUserData.status === 'approved') {
-                            // If status changes to approved while on dashboard, show success
-                            showMessage("Your account has been approved! You now have full access.", "success");
+                        // Display messages based on verification and approval status
+                        if (!auth.currentUser.emailVerified) {
+                            showMessage("Please verify your email address to unlock full features. Check your inbox for the link.", "error");
+                        } else if (currentUserData.status === 'pending') {
+                            showMessage("Your account is pending admin approval. Some features may be locked until approved.", "error");
+                        } else if (currentUserData.status === 'approved' && auth.currentUser.emailVerified) {
+                             // If everything is good, just show a success message if coming from pending/unverified
+                             showMessage("Your account is fully active. Welcome to your dashboard!", "success");
                         }
 
 
@@ -2672,7 +2680,12 @@
             async function handleAddMeeting(event) {
                 event.preventDefault();
                 // Basic admin check - in real app, use Firebase Security Rules + backend roles
-                if (currentUserData.status !== 'admin' && currentUserData.status !== 'approved') { // Allowing "approved" for testing as "admin" might not be set up
+                // Check for both email verification and profile approval for sensitive actions
+                if (!auth.currentUser.emailVerified || currentUserData.status !== 'approved') {
+                    showMessage("Only fully approved administrators can add meetings.", "error");
+                    return;
+                }
+                if (currentUserData.status !== 'admin') { // Allowing "approved" for testing as "admin" might not be set up
                     showMessage("Only administrators can add meetings.", "error");
                     return;
                 }
@@ -2711,10 +2724,16 @@
             async function handleAddInvestment(event) {
                 event.preventDefault();
                  // Basic admin check - in real app, use Firebase Security Rules + backend roles
-                if (currentUserData.status !== 'admin' && currentUserData.status !== 'approved') {
+                // Check for both email verification and profile approval for sensitive actions
+                if (!auth.currentUser.emailVerified || currentUserData.status !== 'approved') {
+                    showMessage("Only fully approved administrators can add investment opportunities.", "error");
+                    return;
+                }
+                if (currentUserData.status !== 'admin') {
                     showMessage("Only administrators can add investment opportunities.", "error");
                     return;
                 }
+
 
                 const title = document.getElementById('investment-title').value.trim();
                 const amount = parseFloat(document.getElementById('investment-amount').value);
@@ -2749,8 +2768,9 @@
                     window.renderPage('login');
                     return;
                 }
-                if (currentUserData.status !== 'approved') {
-                     showMessage("Your account is pending approval. You cannot pledge to investments yet.", "error");
+                // Check for both email verification and profile approval for sensitive actions
+                if (!auth.currentUser.emailVerified || currentUserData.status !== 'approved') {
+                     showMessage("Your account is not yet fully activated. Please verify your email and await admin approval to pledge to investments.", "error");
                      return;
                  }
 
@@ -2799,7 +2819,12 @@
             async function handleCreatePoll(event) {
                 event.preventDefault();
                 // Basic admin check
-                if (currentUserData.status !== 'admin' && currentUserData.status !== 'approved') {
+                // Check for both email verification and profile approval for sensitive actions
+                if (!auth.currentUser.emailVerified || currentUserData.status !== 'approved') {
+                    showMessage("Only fully approved administrators can create polls.", "error");
+                    return;
+                }
+                if (currentUserData.status !== 'admin') {
                     showMessage("Only administrators can create polls.", "error");
                     return;
                 }
@@ -2847,8 +2872,9 @@
                     window.renderPage('login');
                     return;
                 }
-                if (currentUserData.status !== 'approved') {
-                    showMessage("Your account is pending approval. You cannot vote yet.", "error");
+                // Check for both email verification and profile approval for sensitive actions
+                if (!auth.currentUser.emailVerified || currentUserData.status !== 'approved') {
+                    showMessage("Your account is not yet fully activated. Please verify your email and await admin approval to vote.", "error");
                     return;
                 }
 
@@ -2892,7 +2918,12 @@
             async function handleUploadDocument(event) {
                 event.preventDefault();
                 // Basic admin check
-                if (currentUserData.status !== 'admin' && currentUserData.status !== 'approved') {
+                // Check for both email verification and profile approval for sensitive actions
+                if (!auth.currentUser.emailVerified || currentUserData.status !== 'approved') {
+                    showMessage("Only fully approved administrators can upload documents.", "error");
+                    return;
+                }
+                if (currentUserData.status !== 'admin') {
                     showMessage("Only administrators can upload documents.", "error");
                     return;
                 }
@@ -2931,8 +2962,9 @@
                     showMessage("Please log in to post messages.", "error");
                     return;
                 }
-                if (currentUserData.status !== 'approved') {
-                     showMessage("Your account is pending approval. You cannot post in the forum yet.", "error");
+                // Check for both email verification and profile approval for sensitive actions
+                if (!auth.currentUser.emailVerified || currentUserData.status !== 'approved') {
+                     showMessage("Your account is not yet fully activated. Please verify your email and await admin approval to post in the forum.", "error");
                      return;
                  }
 
