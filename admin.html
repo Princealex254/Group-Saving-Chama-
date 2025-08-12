@@ -326,8 +326,6 @@
             messagingSenderId: "570981365925",
             appId: "1:570981365925:web:42422e51e4e02c6ab4f54c"
         };
-        // Shared App ID
-        const appId = "group-saving-chama";
 
         // Initialize Firebase services
         const app = initializeApp(firebaseConfig);
@@ -336,14 +334,10 @@
         const storage = getStorage(app);
 
         // Helper to construct public collection paths (for shared data)
-        function getPublicCollectionPath(collectionName) {
-            return `artifacts/${appId}/public/data/${collectionName}`;
-        }
+        const getPublicCollectionPath = (collectionName) => `artifacts/${firebaseConfig.appId}/public/data/${collectionName}`;
 
         // Helper to construct private (user-specific) collection paths
-        function getPrivateCollectionPath(userId, collectionName) {
-            return `artifacts/${appId}/users/${userId}/${collectionName}`;
-        }
+        const getPrivateCollectionPath = (userId, collectionName) => `artifacts/${firebaseConfig.appId}/users/${userId}/${collectionName}`;
 
         let currentUserId = null; // Variable to hold the authenticated user's ID
 
@@ -362,20 +356,17 @@
             // Function to check admin status
             async function checkAdminStatus(email) {
                 try {
-                    // Fetch the admin document using the email as the document ID
-                    const adminRef = doc(firestore, getPublicCollectionPath("admins"), email.toLowerCase());
+                    const adminRef = doc(firestore, "admins", email.toLowerCase());
                     const adminSnap = await getDoc(adminRef);
                     const isAdmin = adminSnap.exists() && adminSnap.data().isAdmin === true;
-                    
                     if (!isAdmin) {
-                        console.warn(`User ${email} is NOT an admin. Access denied.`);
-                        // The UI modal will be handled by the calling function (onAuthStateChanged or loginForm submit)
+                        console.warn(`User ${email} is NOT an admin. Admin-only data will not load.`);
+                        showConfirmationModal("You are not authorized to access the admin dashboard.", () => {});
                     }
                     return isAdmin;
                 } catch (error) {
                     console.error("Error checking admin status:", error);
-                    // For robustness, assume not admin if there's an error fetching status
-                    showConfirmationModal(`Error verifying admin status: ${error.message}. Please try again.`, () => {});
+                    showConfirmationModal(`Error verifying admin status: ${error.message}`, () => {});
                     return false;
                 }
             }
@@ -649,7 +640,7 @@
                 // Meetings & Notices listeners (remain public)
                 onSnapshot(collection(firestore, getPublicCollectionPath('meetings')), snapshot => { 
                     allMeetingsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-                    renderMeetingsNoticesTable(allMeetingsData);
+                    renderMeetingsTable(allMeetingsData);
                     if (snapshot.empty) {
                         console.warn(`No documents in 'meetings' collection (Meetings & Notices). Possible causes: 
                           1. No data exists
@@ -699,7 +690,6 @@
 
                 // Investments listeners (remain public)
                 onSnapshot(collection(firestore, getPublicCollectionPath('investments')), snapshot => { 
-                    document.getElementById('investment-projects').textContent = snapshot.size;
                     allInvestmentsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
                     renderInvestmentsTable(allInvestmentsData);
                     if (snapshot.empty) {
@@ -818,11 +808,11 @@
                         renderSection('dashboard-overview'); // Load default section
                         initFirestoreListeners(); // Start all real-time listeners only after admin verification
                     } else {
-                        await signOut(auth); // Sign out non-admin users
+                        await signOut(auth);
                         connectionStatusElement.textContent = "Access Denied";
                         dashboardConnectionStatusElement.textContent = "Access Denied";
                         showConfirmationModal("You are not authorized to access the admin dashboard. You will be redirected to the main login page.", () => {
-                            window.location.href = 'http://savingchama.princealex.pro/index.html'; // Redirect to your main login page
+                            window.location.href = 'http://savingchama.princealex.pro/index.html';
                         });
                     }
                 } else {
@@ -840,28 +830,11 @@
                 e.preventDefault();
                 const email = loginForm.email.value;
                 const password = loginForm.password.value;
-                const loginErrorElement = document.getElementById('login-error');
-                loginErrorElement.textContent = ''; // Clear previous errors
-
                 try {
                     await setPersistence(auth, browserLocalPersistence);
-                    const userCredential = await signInWithEmailAndPassword(auth, email, password);
-                    const user = userCredential.user;
-
-                    // Immediately check admin status after successful login
-                    const isAdmin = await checkAdminStatus(user.email);
-
-                    if (isAdmin) {
-                        // onAuthStateChanged will handle the UI update and listener initialization
-                        console.log("Login successful and user is admin.");
-                    } else {
-                        await signOut(auth); // Sign out if not an admin
-                        showConfirmationModal("You are not authorized to access the admin dashboard. You will be redirected to the main login page.", () => {
-                            window.location.href = 'http://savingchama.princealex.pro/index.html'; // Redirect to your main login page
-                        });
-                    }
+                    await signInWithEmailAndPassword(auth, email, password);
                 } catch (error) {
-                    loginErrorElement.textContent = error.message;
+                    document.getElementById('login-error').textContent = error.message;
                     console.error("Login error:", error);
                     connectionStatusElement.textContent = "Login Error";
                     dashboardConnectionStatusElement.textContent = "Login Error";
@@ -1412,7 +1385,6 @@
                                 const userProfileSnap = await getDoc(userProfileRef);
                                 if (userProfileSnap.exists()) {
                                     const currentContributionBalance = userProfileSnap.data().contribution_balance || 0;
-                                    const balanceChange = amount - oldAmount;
                                     await updateDoc(userProfileRef, {
                                         contribution_balance: currentContributionBalance - deletedAmount
                                     });
@@ -1480,7 +1452,7 @@
                     }
                 });
 
-                // Sorting functionality (similar to members/contributions)
+                // Sorting functionality
                 contentContainer.querySelectorAll('.sort-icon').forEach(icon => {
                     icon.addEventListener('click', (e) => {
                         const sortBy = e.target.dataset.sort;
@@ -1929,7 +1901,7 @@
                 meetingSearchInput.addEventListener('keyup', () => {
                     const searchTerm = meetingSearchInput.value.toLowerCase();
                     const filteredMeetings = allMeetingsData.filter(m => 
-                        (m.title || '').toLowerCase().includes(searchTerm) || 
+                        m.title.toLowerCase().includes(searchTerm) || 
                         (m.description || '').toLowerCase().includes(searchTerm) ||
                         (m.date ? new Date(m.date.seconds * 1000).toLocaleDateString().includes(searchTerm) : false)
                     );
