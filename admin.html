@@ -7,16 +7,12 @@
     
     <!-- Modular Firebase SDKs -->
     <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-app.js";
-        import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, signOut, browserLocalPersistence, setPersistence } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-auth.js";
-        // IMPORT_FIX: Added collectionGroup for fetching data across subcollections
-        import { getFirestore, collection, doc, getDoc, onSnapshot, updateDoc, addDoc, deleteDoc, serverTimestamp, query, where, getDocs, collectionGroup } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore.js";
-        import { getStorage, ref, uploadBytes, getDownloadURL, deleteObject } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-storage.js";
-
-        // Chart.js for graphs
-        // Moved inside the script type="module" block for better scope management
-        // although it's generally fine as a global script.
-        // For larger apps, consider importing Chart.js via a module bundler.
+        // UPGRADED FIREBASE IMPORTS FROM v9.22.2 to v10.12.2
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+        import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, signOut, browserLocalPersistence, setPersistence } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+        // REMOVED collectionGroup as per instructions, only needed functions are imported
+        import { getFirestore, collection, doc, getDoc, onSnapshot, updateDoc, addDoc, deleteDoc, serverTimestamp, query, where, getDocs } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+        import { getStorage, ref, uploadBytes, getDownloadURL, deleteObject } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-storage.js";
     </script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@3.7.0/dist/chart.min.js"></script>
     
@@ -308,16 +304,13 @@
     </div>
 
     <script type="module">
-        // Import the functions you need from the SDKs you need
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-app.js";
-        // IMPORT_UPDATE: Added browserLocalPersistence and setPersistence
-        import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, signOut, browserLocalPersistence, setPersistence } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-auth.js";
-        // IMPORT_FIX: Added collectionGroup for fetching data across subcollections
-        import { getFirestore, collection, doc, getDoc, onSnapshot, updateDoc, addDoc, deleteDoc, serverTimestamp, query, where, getDocs, collectionGroup } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore.js";
-        import { getStorage, ref, uploadBytes, getDownloadURL, deleteObject } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-storage.js";
-        // Chart.js is already loaded as a global script, no need to import here.
-
-        // YOUR FIREBASE CONFIGURATION (LEFT UNTOUCHED AS REQUESTED)
+        // UPGRADED FIREBASE IMPORTS from v9.22.2 to v10.12.2
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+        import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, signOut, browserLocalPersistence, setPersistence } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+        import { getFirestore, collection, doc, getDoc, onSnapshot, updateDoc, addDoc, deleteDoc, serverTimestamp, query, where, getDocs } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+        import { getStorage, ref, uploadBytes, getDownloadURL, deleteObject } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-storage.js";
+        
+        // Firebase Configuration and Helper Functions from indexx.html
         const firebaseConfig = {
             apiKey: "AIzaSyC8-TWRr_vOMTv72scXxu-9l5uVHRVputo",
             authDomain: "group-saving-chama.firebaseapp.com",
@@ -327,19 +320,38 @@
             appId: "1:570981365925:web:42422e51e4e02c6ab4f54c"
         };
 
+        const appId = "group-saving-chama"; // Consistent with indexx.html
+
+        // Helper to construct public collection paths (for shared data)
+        const getPublicCollectionPath = (collectionName) => `artifacts/${appId}/public/data/${collectionName}`;
+
+        // Helper to construct private (user-specific) collection paths
+        // Note: For user_profile, the document ID within the 'user_profile' collection is the userId itself.
+        const getPrivateCollectionPath = (userId, collectionName) => `artifacts/${appId}/users/${userId}/${collectionName}`;
+
         // Initialize Firebase services
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
         const firestore = getFirestore(app);
         const storage = getStorage(app);
 
-        // Helper to construct public collection paths (for shared data)
-        const getPublicCollectionPath = (collectionName) => `artifacts/${firebaseConfig.appId}/public/data/${collectionName}`;
-
-        // Helper to construct private (user-specific) collection paths
-        const getPrivateCollectionPath = (userId, collectionName) => `artifacts/${firebaseConfig.appId}/users/${userId}/${collectionName}`;
-
         let currentUserId = null; // Variable to hold the authenticated user's ID
+
+        // Global data arrays to aggregate data from all users' subcollections
+        let allMembersData = [];
+        let allContributionsData = [];
+        let allLoansData = [];
+        let allFinesData = [];
+        let allAttendanceData = [];
+        let allNotificationsData = [];
+
+        // Maps for dropdowns and display
+        let membersMap = {}; // { userId: "Member Name" }
+        let memberIdToEmailMap = {}; // { userId: "member@example.com" }
+
+        // Store unsubscribe functions for private listeners for cleanup
+        const privateUnsubscribes = {}; // { userId: [unsubFunc1, unsubFunc2, ...] }
+
 
         document.addEventListener('DOMContentLoaded', () => {
             // DOM Elements
@@ -349,9 +361,16 @@
             const contentContainer = document.getElementById('content-container');
             const sidebar = document.querySelector('.sidebar');
             const hamburger = document.querySelector('.hamburger');
-            const logoutBtn = document.getElementById('logout-btn'); // Get the logout button
+            const logoutBtn = document.getElementById('logout-btn');
             const connectionStatusElement = document.getElementById('connection-status');
             const dashboardConnectionStatusElement = document.getElementById('dashboard-connection-status');
+
+            // Function to show connection status
+            function showConnectionStatus(message, element) {
+                if (element) {
+                    element.textContent = message;
+                }
+            }
 
             // Function to check admin status
             async function checkAdminStatus(email) {
@@ -373,41 +392,194 @@
 
             // Function to initialize all Firestore listeners
             function initFirestoreListeners() {
-                // These are all the onSnapshot calls that need to be wrapped.
-                // Dashboard Overview
-                // MODIFIED: 'total-members' now sourced from 'user_profile' collection group
-                onSnapshot(collectionGroup(firestore, 'user_profile'), snapshot => { 
-                    document.getElementById('total-members').textContent = snapshot.size;
-                    if (snapshot.empty) {
-                        console.warn(`No documents in 'user_profile' collection group. Possible causes: 
-                          1. No data exists
-                          2. User not admin or rules blocking access
-                          3. Missing collection group index for 'user_profile'`);
+                initPrivateCollectionListeners(); // Sets up listeners for all users' private data
+                initPublicCollectionListeners(); // Sets up listeners for public data
+            }
+
+            // Centralized function to set up listeners for all users' private data
+            function initPrivateCollectionListeners() {
+                const usersRootCollectionRef = collection(firestore, `artifacts/${appId}/users`);
+
+                // Listen for changes in the list of users
+                onSnapshot(usersRootCollectionRef, userSnapshot => {
+                    const currentUserIds = userSnapshot.docs.map(doc => doc.id);
+
+                    // Identify and unsubscribe from listeners of removed users
+                    for (const userId in privateUnsubscribes) {
+                        if (!currentUserIds.includes(userId)) {
+                            console.log(`Unsubscribing from data for removed user: ${userId}`);
+                            privateUnsubscribes[userId].forEach(unsub => unsub()); // Unsubscribe all listeners for this user
+                            delete privateUnsubscribes[userId]; // Remove from our tracking object
+                            
+                            // Clean up data related to this user from global arrays
+                            allMembersData = allMembersData.filter(m => m.id !== userId);
+                            allContributionsData = allContributionsData.filter(c => c.memberUserId !== userId);
+                            allLoansData = allLoansData.filter(l => l.memberUserId !== userId);
+                            allFinesData = allFinesData.filter(f => f.memberUserId !== userId);
+                            allAttendanceData = allAttendanceData.filter(a => a.memberUserId !== userId);
+                            allNotificationsData = allNotificationsData.filter(n => n.memberUserId !== userId);
+                        }
                     }
+
+                    // For each current user ID, set up/maintain listeners for their private subcollections
+                    currentUserIds.forEach(userId => {
+                        // Only set up listeners if they haven't been set for this user yet
+                        if (!privateUnsubscribes[userId]) {
+                            privateUnsubscribes[userId] = []; // Initialize array for this user's unsubscribes
+                            console.log(`Setting up private data listeners for user: ${userId}`);
+
+                            // 1. Listener for user_profile (document is userId within user_profile collection)
+                            const userProfileDocRef = doc(firestore, getPrivateCollectionPath(userId, 'user_profile'), userId);
+                            privateUnsubscribes[userId].push(onSnapshot(userProfileDocRef, docSnapshot => {
+                                const existingIndex = allMembersData.findIndex(member => member.id === userId);
+                                if (docSnapshot.exists()) {
+                                    const newData = { id: userId, ...docSnapshot.data() };
+                                    if (existingIndex > -1) {
+                                        allMembersData[existingIndex] = newData; // Update existing
+                                    } else {
+                                        allMembersData.push(newData); // Add new
+                                    }
+                                } else if (existingIndex > -1) {
+                                    allMembersData.splice(existingIndex, 1); // Remove if profile document no longer exists
+                                }
+                                renderMembersTable(allMembersData); // Re-render members list
+                                renderMemberDropdowns(allMembersData); // Update member select dropdowns
+                                updateDashboardOverview(); // Update dashboard overview numbers
+                            }, error => console.error(`Error fetching user_profile for ${userId}:`, error)));
+
+                            // 2. Listener for contributions subcollection
+                            const contributionsCollectionRef = collection(firestore, getPrivateCollectionPath(userId, 'contributions'));
+                            privateUnsubscribes[userId].push(onSnapshot(contributionsCollectionRef, snapshot => {
+                                // Remove old contributions for this specific user
+                                allContributionsData = allContributionsData.filter(c => c.memberUserId !== userId);
+                                // Add new/updated contributions for this user
+                                snapshot.forEach(doc => {
+                                    allContributionsData.push({ id: doc.id, memberUserId: userId, ...doc.data() });
+                                });
+                                renderContributionsTable(allContributionsData);
+                                updateDashboardOverview(); // Update dashboard overview numbers
+                            }, error => console.error(`Error fetching contributions for ${userId}:`, error)));
+
+                            // 3. Listener for loans subcollection
+                            const loansCollectionRef = collection(firestore, getPrivateCollectionPath(userId, 'loans'));
+                            privateUnsubscribes[userId].push(onSnapshot(loansCollectionRef, snapshot => {
+                                allLoansData = allLoansData.filter(l => l.memberUserId !== userId);
+                                snapshot.forEach(doc => {
+                                    allLoansData.push({ id: doc.id, memberUserId: userId, ...doc.data() });
+                                });
+                                renderLoansTable(allLoansData);
+                                updateDashboardOverview(); // Update dashboard overview numbers
+                            }, error => console.error(`Error fetching loans for ${userId}:`, error)));
+
+                            // 4. Listener for fines subcollection
+                            const finesCollectionRef = collection(firestore, getPrivateCollectionPath(userId, 'fines'));
+                            privateUnsubscribes[userId].push(onSnapshot(finesCollectionRef, snapshot => {
+                                allFinesData = allFinesData.filter(f => f.memberUserId !== userId);
+                                snapshot.forEach(doc => {
+                                    allFinesData.push({ id: doc.id, memberUserId: userId, ...doc.data() });
+                                });
+                                renderFinesTable(allFinesData);
+                                updateDashboardOverview(); // Update dashboard overview numbers
+                            }, error => console.error(`Error fetching fines for ${userId}:`, error)));
+
+                            // 5. Listener for attendance subcollection
+                            const attendanceCollectionRef = collection(firestore, getPrivateCollectionPath(userId, 'attendance'));
+                            privateUnsubscribes[userId].push(onSnapshot(attendanceCollectionRef, snapshot => {
+                                allAttendanceData = allAttendanceData.filter(a => a.memberUserId !== userId);
+                                snapshot.forEach(doc => {
+                                    allAttendanceData.push({ id: doc.id, memberUserId: userId, ...doc.data() });
+                                });
+                                renderAttendanceTable(allAttendanceData);
+                            }, error => console.error(`Error fetching attendance for ${userId}:`, error)));
+
+                            // 6. Listener for notifications subcollection
+                            const notificationsCollectionRef = collection(firestore, getPrivateCollectionPath(userId, 'notifications'));
+                            privateUnsubscribes[userId].push(onSnapshot(notificationsCollectionRef, snapshot => {
+                                allNotificationsData = allNotificationsData.filter(n => n.memberUserId !== userId);
+                                snapshot.forEach(doc => {
+                                    allNotificationsData.push({ id: doc.id, memberUserId: userId, ...doc.data() });
+                                });
+                                renderNotificationsTable(allNotificationsData);
+                            }, error => console.error(`Error fetching notifications for ${userId}:`, error)));
+                        }
+                    });
+                }, error => console.error("Error listening to artifacts/{appId}/users collection:", error));
+            }
+
+            // Initializes listeners for public collections (unchanged)
+            function initPublicCollectionListeners() {
+                onSnapshot(collection(firestore, getPublicCollectionPath('meetings')), snapshot => { 
+                    document.getElementById('meetings-scheduled').textContent = snapshot.size;
+                    allMeetingsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                    renderMeetingsTable(allMeetingsData);
                 }, error => {
-                    console.error("Firestore listener error for 'user_profile' collection group (Dashboard Overview):", error);
+                    console.error("Firestore listener error for 'meetings' collection (Dashboard Overview):", error);
                 });
 
-                onSnapshot(collectionGroup(firestore, 'contributions'), snapshot => { 
-                    let total = 0;
-                    snapshot.forEach(doc => total += doc.data().amount || 0);
-                    document.getElementById('total-contributions').textContent = `Ksh ${total.toFixed(2)}`;
-                    
-                    const monthlyContributions = {}; 
-                    snapshot.forEach(doc => {
-                        const date = doc.data().date.toDate(); 
-                        const monthYear = `${date.getFullYear()}-${date.getMonth() + 1}`;
-                        monthlyContributions[monthYear] = (monthlyContributions[monthYear] || 0) + doc.data().amount;
-                    });
+                onSnapshot(collection(firestore, getPublicCollectionPath('investments')), snapshot => { 
+                    document.getElementById('investment-projects').textContent = snapshot.size;
+                    allInvestmentsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                    renderInvestmentsTable(allInvestmentsData);
+                }, error => {
+                    console.error("Firestore listener error for 'investments' collection (Dashboard Overview):", error);
+                });
 
-                    const labels = Object.keys(monthlyContributions).sort();
-                    const data = labels.map(label => monthlyContributions[label]);
+                onSnapshot(collection(firestore, getPublicCollectionPath('polls')), snapshot => { 
+                    allPollsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                    renderPollsTable(allPollsData);
+                }, error => {
+                    console.error("Firestore listener error for 'polls' collection (Voting & Polls):", error);
+                });
 
-                    const ctx1 = document.getElementById('contributions-chart').getContext('2d');
-                    if (Chart.getChart(ctx1)) { 
-                        Chart.getChart(ctx1).destroy();
+                onSnapshot(collection(firestore, getPublicCollectionPath('documents')), snapshot => { 
+                    allDocumentsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                    renderDocumentsTable(allDocumentsData);
+                }, error => {
+                    console.error("Firestore listener error for 'documents' collection (Documents Management):", error);
+                });
+            }
+
+            // Updates the overview cards and charts on the dashboard page
+            function updateDashboardOverview() {
+                const totalMembers = allMembersData.length;
+                document.getElementById('total-members').textContent = totalMembers;
+                
+                let totalContributions = 0;
+                allContributionsData.forEach(c => totalContributions += c.amount || 0);
+                document.getElementById('total-contributions').textContent = `Ksh ${totalContributions.toFixed(2)}`;
+
+                let totalLoansIssued = 0;
+                let totalLoansRepaid = 0;
+                allLoansData.forEach(l => {
+                    totalLoansIssued += l.amount || 0;
+                    totalLoansRepaid += l.repaidAmount || 0; // Assuming repaidAmount field exists
+                });
+                document.getElementById('total-loans-issued').textContent = `Ksh ${totalLoansIssued.toFixed(2)}`;
+                
+                // Simplified funds available calculation (Total Contributions + Fines Paid - Total Loans Issued)
+                let totalFinesPaid = allFinesData.filter(f => f.status === 'paid').reduce((sum, f) => sum + (f.amount || 0), 0);
+                document.getElementById('funds-available').textContent = `Ksh ${(totalContributions + totalFinesPaid - totalLoansIssued).toFixed(2)}`;
+                
+                document.getElementById('fines-issued').textContent = allFinesData.length;
+
+                // Contributions Chart
+                const monthlyContributions = {}; 
+                allContributionsData.forEach(doc => {
+                    const date = doc.date ? doc.date.toDate() : new Date(); // Ensure it's a Date object
+                    const monthYear = `${date.getFullYear()}-${date.getMonth() + 1}`;
+                    monthlyContributions[monthYear] = (monthlyContributions[monthYear] || 0) + doc.amount;
+                });
+
+                const labels = Object.keys(monthlyContributions).sort();
+                const data = labels.map(label => monthlyContributions[label]);
+
+                const ctx1 = document.getElementById('contributions-chart');
+                if (ctx1) { // Check if canvas element exists
+                    const chartInstance = Chart.getChart(ctx1);
+                    if (chartInstance) { 
+                        chartInstance.destroy(); // Destroy previous chart instance
                     }
-                    new Chart(ctx1, {
+                    new Chart(ctx1.getContext('2d'), {
                         type: 'line',
                         data: {
                             labels: labels,
@@ -423,394 +595,63 @@
                         options: {
                             responsive: true,
                             scales: {
-                                y: {
-                                    beginAtZero: true,
-                                    title: {
-                                        display: true,
-                                        text: 'Amount (Ksh)'
-                                    }
-                                },
-                                x: {
-                                    title: {
-                                        display: true,
-                                        text: 'Month'
-                                    }
-                                }
+                                y: { beginAtZero: true, title: { display: true, text: 'Amount (Ksh)' } },
+                                x: { title: { display: true, text: 'Month' } }
                             }
                         }
                     });
-                    if (snapshot.empty) {
-                        console.warn(`No documents in 'contributions' collection group. Possible causes: 
-                          1. No data exists
-                          2. User not admin or rules blocking access
-                          3. Missing collection group index for 'contributions'`);
+                }
+                
+                // Loans Chart
+                const ctx2 = document.getElementById('loans-chart');
+                if (ctx2) { // Check if canvas element exists
+                    const chartInstance = Chart.getChart(ctx2);
+                    if (chartInstance) { 
+                        chartInstance.destroy(); // Destroy previous chart instance
                     }
-                }, error => {
-                    console.error("Firestore listener error for 'contributions' collection group (Dashboard Overview):", error);
-                });
-
-                onSnapshot(collectionGroup(firestore, 'loans'), snapshot => { 
-                    let totalIssued = 0;
-                    let totalRepaid = 0;
-                    snapshot.forEach(doc => {
-                        const loan = doc.data();
-                        totalIssued += loan.amount || 0;
-                        totalRepaid += loan.repaidAmount || 0; 
-                    });
-                    document.getElementById('total-loans-issued').textContent = `Ksh ${totalIssued.toFixed(2)}`;
-                    
-                    const ctx2 = document.getElementById('loans-chart').getContext('2d');
-                    if (Chart.getChart(ctx2)) { 
-                        Chart.getChart(ctx2).destroy();
-                    }
-                    new Chart(ctx2, {
+                    new Chart(ctx2.getContext('2d'), {
                         type: 'bar',
                         data: {
                             labels: ['Loans'],
                             datasets: [
-                                {
-                                    label: 'Disbursed',
-                                    data: [totalIssued],
-                                    backgroundColor: getComputedStyle(document.documentElement).getPropertyValue('--maroon'),
-                                },
-                                {
-                                    label: 'Repaid',
-                                    data: [totalRepaid],
-                                    backgroundColor: '#4CAF50', 
-                                }
+                                { label: 'Disbursed', data: [totalLoansIssued], backgroundColor: getComputedStyle(document.documentElement).getPropertyValue('--maroon') },
+                                { label: 'Repaid', data: [totalLoansRepaid], backgroundColor: '#4CAF50' }
                             ]
                         },
                         options: {
                             responsive: true,
-                            scales: {
-                                y: {
-                                    beginAtZero: true,
-                                    title: {
-                                        display: true,
-                                        text: 'Amount (Ksh)'
-                                    }
-                                }
-                            }
+                            scales: { y: { beginAtZero: true, title: { display: true, text: 'Amount (Ksh)' } } }
                         }
                     });
-                    if (snapshot.empty) {
-                        console.warn(`No documents in 'loans' collection group. Possible causes: 
-                          1. No data exists
-                          2. User not admin or rules blocking access
-                          3. Missing collection group index for 'loans'`);
-                    }
-                }, error => {
-                    console.error("Firestore listener error for 'loans' collection group (Dashboard Overview):", error);
-                });
-
-                onSnapshot(collection(firestore, getPublicCollectionPath('meetings')), snapshot => { 
-                    document.getElementById('meetings-scheduled').textContent = snapshot.size;
-                    if (snapshot.empty) {
-                        console.warn(`No documents in 'meetings' collection. Possible causes: 
-                          1. No data exists
-                          2. User not admin or rules blocking access`);
-                    }
-                }, error => {
-                    console.error("Firestore listener error for 'meetings' collection (Dashboard Overview):", error);
-                });
-
-                onSnapshot(collectionGroup(firestore, 'fines'), snapshot => { 
-                    document.getElementById('fines-issued').textContent = snapshot.size;
-                    if (snapshot.empty) {
-                        console.warn(`No documents in 'fines' collection group. Possible causes: 
-                          1. No data exists
-                          2. User not admin or rules blocking access
-                          3. Missing collection group index for 'fines'`);
-                    }
-                }, error => {
-                    console.error("Firestore listener error for 'fines' collection group (Dashboard Overview):", error);
-                });
-
-                onSnapshot(collection(firestore, getPublicCollectionPath('investments')), snapshot => { 
-                    document.getElementById('investment-projects').textContent = snapshot.size;
-                    if (snapshot.empty) {
-                        console.warn(`No documents in 'investments' collection. Possible causes: 
-                          1. No data exists
-                          2. User not admin or rules blocking access`);
-                    }
-                }, error => {
-                    console.error("Firestore listener error for 'investments' collection (Dashboard Overview):", error);
-                });
-
-                // Members Management listeners
-                // MODIFIED: Now fetches from user_profile collection group
-                onSnapshot(collectionGroup(firestore, 'user_profile'), snapshot => { 
-                    // Map the documents to the structure expected by renderMembersTable
-                    allMembersData = snapshot.docs.map(doc => ({ 
-                        id: doc.id, // The document ID of the user_profile is the userId
-                        name: doc.data().name, 
-                        email: doc.data().email, 
-                        status: doc.data().status,
-                        profilePicUrl: doc.data().profilePicUrl, 
-                    }));
-                    renderMembersTable(allMembersData);
-                    if (snapshot.empty) {
-                        console.warn(`No documents in 'user_profile' collection group (Members Management). Possible causes: 
-                          1. No data exists
-                          2. User not admin or rules blocking access
-                          3. Missing collection group index for 'user_profile'`);
-                    }
-                }, error => {
-                    console.error("Firestore listener error for 'user_profile' collection group (Members Management):", error);
-                });
-
-                // Contributions Management dropdown listener
-                // MODIFIED: Now fetches from user_profile collection group
-                onSnapshot(collectionGroup(firestore, 'user_profile'), snapshot => { 
-                    contributionMemberSelect.innerHTML = '<option value="">Select Member</option>'; 
-                    membersMap = {}; // Reset membersMap
-                    memberIdToEmailMap = {}; // Reset memberIdToEmailMap
-                    snapshot.forEach(doc => {
-                        const memberData = doc.data();
-                        const memberId = doc.id; // User ID is the doc ID in user_profile
-                        membersMap[memberId] = memberData.name;
-                        memberIdToEmailMap[memberId] = memberData.email; 
-                        const option = document.createElement('option');
-                        option.value = memberId;
-                        option.textContent = memberData.name;
-                        contributionMemberSelect.appendChild(option);
-                    });
-                    if (snapshot.empty) {
-                        console.warn(`No documents in 'user_profile' collection group (Contributions Management - member dropdown). Possible causes: 
-                          1. No data exists
-                          2. User not admin or rules blocking access
-                          3. Missing collection group index for 'user_profile'`);
-                    }
-                }, error => {
-                    console.error("Firestore listener error for 'user_profile' collection group (Contributions Management - member dropdown):", error);
-                });
-
-                onSnapshot(collectionGroup(firestore, 'contributions'), snapshot => { 
-                    allContributionsData = snapshot.docs.map(doc => ({ id: doc.id, memberUserId: doc.ref.parent.parent.id, ...doc.data() })); 
-                    renderContributionsTable(allContributionsData);
-                    if (snapshot.empty) {
-                        console.warn(`No documents in 'contributions' collection group (Contributions Management). Possible causes: 
-                          1. No data exists
-                          2. User not admin or rules blocking access
-                          3. Missing collection group index for 'contributions'`);
-                    }
-                }, error => {
-                    console.error("Firestore listener error for 'contributions' collection group (Contributions Management):", error);
-                });
-
-                // Loan Management dropdown listener
-                // MODIFIED: Now fetches from user_profile collection group
-                onSnapshot(collectionGroup(firestore, 'user_profile'), snapshot => { 
-                    loanMemberSelect.innerHTML = '<option value="">Select Member</option>'; 
-                    // membersMap and memberIdToEmailMap are global, will be updated by other listeners
-                    // but it's good practice to ensure consistency if this is the primary source for this section's dropdown.
-                    snapshot.forEach(doc => {
-                        const memberData = doc.data();
-                        const memberId = doc.id; // User ID is the doc ID in user_profile
-                        membersMap[memberId] = memberData.name; // Update global map
-                        memberIdToEmailMap[memberId] = memberData.email; // Update global map
-                        const option = document.createElement('option');
-                        option.value = memberId;
-                        option.textContent = memberData.name;
-                        loanMemberSelect.appendChild(option);
-                    });
-                    if (snapshot.empty) {
-                        console.warn(`No documents in 'user_profile' collection group (Loan Management - member dropdown). Possible causes: 
-                          1. No data exists
-                          2. User not admin or rules blocking access
-                          3. Missing collection group index for 'user_profile'`);
-                    }
-                }, error => {
-                    console.error("Firestore listener error for 'user_profile' collection group (Loan Management - member dropdown):", error);
-                });
-
-                onSnapshot(collectionGroup(firestore, 'loans'), snapshot => { 
-                    allLoansData = snapshot.docs.map(doc => ({ id: doc.id, memberUserId: doc.ref.parent.parent.id, ...doc.data() })); 
-                    renderLoansTable(allLoansData);
-                    if (snapshot.empty) {
-                        console.warn(`No documents in 'loans' collection group (Loan Management). Possible causes: 
-                          1. No data exists
-                          2. User not admin or rules blocking access
-                          3. Missing collection group index for 'loans'`);
-                    }
-                }, error => {
-                    console.error("Firestore listener error for 'loans' collection group (Loan Management):", error);
-                });
-
-                // Meetings & Notices listeners (remain public)
-                onSnapshot(collection(firestore, getPublicCollectionPath('meetings')), snapshot => { 
-                    allMeetingsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-                    renderMeetingsTable(allMeetingsData);
-                    if (snapshot.empty) {
-                        console.warn(`No documents in 'meetings' collection (Meetings & Notices). Possible causes: 
-                          1. No data exists
-                          2. User not admin or rules blocking access`);
-                    }
-                }, error => {
-                    console.error("Firestore listener error for 'meetings' collection (Meetings & Notices):", error);
-                });
-
-                // Fines & Penalties dropdown listener
-                // MODIFIED: Now fetches from user_profile collection group
-                onSnapshot(collectionGroup(firestore, 'user_profile'), snapshot => { 
-                    fineMemberSelect.innerHTML = '<option value="">Select Member</option>'; 
-                    // membersMap and memberIdToEmailMap are global, will be updated by other listeners
-                    snapshot.forEach(doc => {
-                        const memberData = doc.data();
-                        const memberId = doc.id; // User ID is the doc ID in user_profile
-                        membersMap[memberId] = memberData.name; // Update global map
-                        memberIdToEmailMap[memberId] = memberData.email; // Update global map
-                        const option = document.createElement('option');
-                        option.value = memberId;
-                        option.textContent = memberData.name;
-                        fineMemberSelect.appendChild(option);
-                    });
-                    if (snapshot.empty) {
-                        console.warn(`No documents in 'user_profile' collection group (Fines & Penalties - member dropdown). Possible causes: 
-                          1. No data exists
-                          2. User not admin or rules blocking access
-                          3. Missing collection group index for 'user_profile'`);
-                    }
-                }, error => {
-                    console.error("Firestore listener error for 'user_profile' collection group (Fines & Penalties - member dropdown):", error);
-                });
-
-                onSnapshot(collectionGroup(firestore, 'fines'), snapshot => { 
-                    allFinesData = snapshot.docs.map(doc => ({ id: doc.id, memberUserId: doc.ref.parent.parent.id, ...doc.data() })); 
-                    renderFinesTable(allFinesData);
-                    if (snapshot.empty) {
-                        console.warn(`No documents in 'fines' collection group (Fines & Penalties). Possible causes: 
-                          1. No data exists
-                          2. User not admin or rules blocking access
-                          3. Missing collection group index for 'fines'`);
-                    }
-                }, error => {
-                    console.error("Firestore listener error for 'fines' collection group (Fines & Penalties):", error);
-                });
-
-                // Investments listeners (remain public)
-                onSnapshot(collection(firestore, getPublicCollectionPath('investments')), snapshot => { 
-                    allInvestmentsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-                    renderInvestmentsTable(allInvestmentsData);
-                    if (snapshot.empty) {
-                        console.warn(`No documents in 'investments' collection. Possible causes: 
-                          1. No data exists
-                          2. User not admin or rules blocking access`);
-                    }
-                }, error => {
-                    console.error("Firestore listener error for 'investments' collection (Investments):", error);
-                });
-
-                // Voting & Polls listeners (remain public)
-                onSnapshot(collection(firestore, getPublicCollectionPath('polls')), snapshot => { 
-                    allPollsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-                    renderPollsTable(allPollsData);
-                    if (snapshot.empty) {
-                        console.warn(`No documents in 'polls' collection (Voting & Polls). Possible causes: 
-                          1. No data exists
-                          2. User not admin or rules blocking access`);
-                    }
-                }, error => {
-                    console.error("Firestore listener error for 'polls' collection (Voting & Polls):", error);
-                });
-
-                // Documents Management listeners (remain public)
-                onSnapshot(collection(firestore, getPublicCollectionPath('documents')), snapshot => { 
-                    allDocumentsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-                    renderDocumentsTable(allDocumentsData);
-                    if (snapshot.empty) {
-                        console.warn(`No documents in 'documents' collection (Documents Management). Possible causes: 
-                          1. No data exists
-                          2. User not admin or rules blocking access`);
-                    }
-                }, error => {
-                    console.error("Firestore listener error for 'documents' collection (Documents Management):", error);
-                });
-
-                // Attendance listeners for all members list
-                // MODIFIED: Now fetches from user_profile collection group
-                onSnapshot(collectionGroup(firestore, 'user_profile'), snapshot => { 
-                    allMembers = snapshot.docs.map(doc => {
-                        const memberData = doc.data();
-                        const memberId = doc.id; // User ID is the doc ID in user_profile
-                        memberIdToEmailMap[memberId] = memberData.email;
-                        return { id: memberId, ...memberData };
-                    });
-                    if (snapshot.empty) {
-                        console.warn(`No documents in 'user_profile' collection group (Attendance - member dropdown). Possible causes: 
-                          1. No data exists
-                          2. User not admin or rules blocking access
-                          3. Missing collection group index for 'user_profile'`);
-                    }
-                }, error => {
-                    console.error("Firestore listener error for 'user_profile' collection group (Attendance - member dropdown):", error);
-                });
-
-                onSnapshot(collectionGroup(firestore, 'attendance'), snapshot => { 
-                    allAttendanceData = snapshot.docs.map(doc => ({ id: doc.id, memberUserId: doc.ref.parent.parent.id, ...doc.data() })); 
-                    renderAttendanceTable(allAttendanceData);
-                    if (snapshot.empty) {
-                        console.warn(`No documents in 'attendance' collection group (Attendance). Possible causes: 
-                          1. No data exists
-                          2. User not admin or rules blocking access
-                          3. Missing collection group index for 'attendance'`);
-                    }
-                }, error => {
-                    console.error("Firestore listener error for 'attendance' collection group (Attendance):", error);
-                });
-
-                // Notifications listeners for all members list
-                // MODIFIED: Now fetches from user_profile collection group
-                onSnapshot(collectionGroup(firestore, 'user_profile'), snapshot => { 
-                    allMembers = snapshot.docs.map(doc => ({ id: doc.id, email: doc.data().email, name: doc.data().name })); 
-                    renderMemberCheckboxes();
-                    if (snapshot.empty) {
-                        console.warn(`No documents in 'user_profile' collection group (Notifications - member dropdown). Possible causes: 
-                          1. No data exists
-                          2. User not admin or rules blocking access
-                          3. Missing collection group index for 'user_profile'`);
-                    }
-                }, error => {
-                    console.error("Firestore listener error for 'user_profile' collection group (Notifications - member dropdown):", error);
-                });
-
-                onSnapshot(collectionGroup(firestore, 'notifications'), snapshot => { 
-                    allNotificationsData = snapshot.docs.map(doc => ({ id: doc.id, memberUserId: doc.ref.parent.parent.id, ...doc.data() })); 
-                    renderNotificationsTable(allNotificationsData);
-                    if (snapshot.empty) {
-                        console.warn(`No documents in 'notifications' collection group (Notifications). Possible causes: 
-                          1. No data exists
-                          2. User not admin or rules blocking access
-                          3. Missing collection group index for 'notifications'`);
-                    }
-                }, error => {
-                    console.error("Firestore listener error for 'notifications' collection group (Notifications):", error);
-                });
+                }
             }
+
 
             // Authentication State Listener
             onAuthStateChanged(auth, async (user) => {
-                connectionStatusElement.textContent = "Connecting to Firebase...";
-                dashboardConnectionStatusElement.textContent = "Connecting to Firebase...";
+                showConnectionStatus("Connecting to Firebase...", connectionStatusElement);
+                showConnectionStatus("Connecting to Firebase...", dashboardConnectionStatusElement);
 
                 if (user) {
-                    connectionStatusElement.textContent = "Checking admin status...";
-                    dashboardConnectionStatusElement.textContent = "Checking admin status...";
+                    showConnectionStatus("Checking admin status...", connectionStatusElement);
+                    showConnectionStatus("Checking admin status...", dashboardConnectionStatusElement);
                     currentUserId = user.uid; 
                     const isAdmin = await checkAdminStatus(user.email);
 
                     if (isAdmin) {
+                        // Set persistence to local for consistent login experience
+                        await setPersistence(auth, browserLocalPersistence);
                         loginPage.style.display = 'none';
                         dashboardPage.style.display = 'block';
-                        connectionStatusElement.textContent = "Connected (Admin)";
-                        dashboardConnectionStatusElement.textContent = "Connected (Admin)";
+                        showConnectionStatus("Connected (Admin)", connectionStatusElement);
+                        showConnectionStatus("Connected (Admin)", dashboardConnectionStatusElement);
                         console.log("Admin logged in:", user.email);
                         renderSection('dashboard-overview'); // Load default section
                         initFirestoreListeners(); // Start all real-time listeners only after admin verification
                     } else {
                         await signOut(auth);
-                        connectionStatusElement.textContent = "Access Denied";
-                        dashboardConnectionStatusElement.textContent = "Access Denied";
+                        showConnectionStatus("Access Denied", connectionStatusElement);
+                        showConnectionStatus("Access Denied", dashboardConnectionStatusElement);
                         showConfirmationModal("You are not authorized to access the admin dashboard. You will be redirected to the main login page.", () => {
                             window.location.href = 'http://savingchama.princealex.pro/index.html';
                         });
@@ -819,8 +660,8 @@
                     currentUserId = null; 
                     loginPage.style.display = 'block';
                     dashboardPage.style.display = 'none';
-                    connectionStatusElement.textContent = "Not Signed In";
-                    dashboardConnectionStatusElement.textContent = "Not Signed In";
+                    showConnectionStatus("Not Signed In", connectionStatusElement);
+                    showConnectionStatus("Not Signed In", dashboardConnectionStatusElement);
                     console.warn("No user signed in. Real-time listeners not started.");
                 }
             });
@@ -831,13 +672,14 @@
                 const email = loginForm.email.value;
                 const password = loginForm.password.value;
                 try {
-                    await setPersistence(auth, browserLocalPersistence);
+                    // Persistence is handled in onAuthStateChanged
                     await signInWithEmailAndPassword(auth, email, password);
+                    // onAuthStateChanged will handle UI update and listener initialization
                 } catch (error) {
                     document.getElementById('login-error').textContent = error.message;
                     console.error("Login error:", error);
-                    connectionStatusElement.textContent = "Login Error";
-                    dashboardConnectionStatusElement.textContent = "Login Error";
+                    showConnectionStatus("Login Error", connectionStatusElement);
+                    showConnectionStatus("Login Error", dashboardConnectionStatusElement);
                 }
             });
 
@@ -964,8 +806,8 @@
                         </div>
                     </div>`;
                 
-                // Note: The onSnapshot calls for these elements are now managed by initFirestoreListeners()
-                // and will update these elements dynamically once the admin is authenticated.
+                // Update the dashboard overview using the globally collected data
+                updateDashboardOverview();
             }
             
             async function renderMembersManagement() {
@@ -1032,7 +874,9 @@
                 const selectAllMembersCheckbox = document.getElementById('select-all-members');
                 const bulkApproveBtn = document.getElementById('bulk-approve-btn');
                 const bulkDeactivateBtn = document.getElementById('bulk-deactivate-btn');
-                let allMembersData = []; 
+                
+                // Initial render of members table from the global data
+                renderMembersTable(allMembersData);
 
                 const renderMembersTable = (membersToDisplay) => {
                     membersList.innerHTML = '';
@@ -1057,8 +901,8 @@
                 memberSearchInput.addEventListener('keyup', () => {
                     const searchTerm = memberSearchInput.value.toLowerCase();
                     const filteredMembers = allMembersData.filter(member => 
-                        member.name.toLowerCase().includes(searchTerm) || 
-                        member.email.toLowerCase().includes(searchTerm)
+                        (member.name || '').toLowerCase().includes(searchTerm) || 
+                        (member.email || '').toLowerCase().includes(searchTerm)
                     );
                     renderMembersTable(filteredMembers);
                 });
@@ -1068,20 +912,23 @@
                     icon.addEventListener('click', (e) => {
                         const sortBy = e.target.dataset.sort;
                         const sortedMembers = [...allMembersData].sort((a, b) => {
-                            if (a[sortBy] < b[sortBy]) return -1;
-                            if (a[sortBy] > b[sortBy]) return 0;
-                            return 0;
+                            const valA = a[sortBy] || '';
+                            const valB = b[sortBy] || '';
+                            if (typeof valA === 'string') return valA.localeCompare(valB);
+                            return valA - valB;
                         });
-                        allMembersData = sortedMembers; 
-                        renderMembersTable(allMembersData);
+                        // Do not reassign allMembersData as it's updated by onSnapshot.
+                        // Instead, just render the sorted copy.
+                        renderMembersTable(sortedMembers);
                     });
                 });
 
                 // Add/Edit Member Form
                 addMemberBtn.addEventListener('click', () => {
                     memberForm.reset();
-                    document.getElementById('member-id').value = '';
+                    document.getElementById('member-id').value = ''; // Clear for new member
                     document.getElementById('current-profile-pic').style.display = 'none';
+                    document.getElementById('current-profile-pic').src = ''; // Clear image src
                     memberFormModal.style.display = 'flex';
                 });
 
@@ -1092,45 +939,73 @@
                 membersList.addEventListener('click', async (e) => { 
                     if (e.target.classList.contains('edit-member-btn')) {
                         const memberId = e.target.dataset.id;
-                        // MODIFIED: Fetch from user_profile using memberId as userId
+                        // Path: artifacts/{appId}/users/{userId}/user_profile/{userId}
                         const docSnapshot = await getDoc(doc(firestore, getPrivateCollectionPath(memberId, 'user_profile'), memberId)); 
                         if (docSnapshot.exists()) {
                             const member = docSnapshot.data();
                             document.getElementById('member-id').value = docSnapshot.id;
-                            document.getElementById('member-name').value = member.name;
-                            document.getElementById('member-email').value = member.email;
-                            document.getElementById('member-status').value = member.status;
+                            document.getElementById('member-name').value = member.name || '';
+                            document.getElementById('member-email').value = member.email || '';
+                            document.getElementById('member-status').value = member.status || 'pending';
                             const profilePicElement = document.getElementById('current-profile-pic');
                             if (member.profilePicUrl) {
                                 profilePicElement.src = member.profilePicUrl;
                                 profilePicElement.style.display = 'block';
                             } else {
                                 profilePicElement.style.display = 'none';
+                                profilePicElement.src = '';
                             }
                             memberFormModal.style.display = 'flex';
+                        } else {
+                            console.error(`Member document not found for ID: ${memberId}`);
+                            showConfirmationModal('Member record not found.', () => {});
                         }
                     }
                     if (e.target.dataset.action === 'approve' || e.target.dataset.action === 'deactivate') {
                         const memberId = e.target.dataset.id;
-                        const newStatus = e.target.dataset.action === 'approve' ? 'active' : 'deactivated';
+                        const newStatus = e.target.dataset.action === 'approve' ? 'approved' : 'deactivated'; // Consistent with indexx.html: 'approved' not 'active'
                         showConfirmationModal(`Are you sure you want to ${newStatus} this member?`, async () => {
-                            // MODIFIED: Update user_profile using memberId as userId
-                            await updateDoc(doc(firestore, getPrivateCollectionPath(memberId, 'user_profile'), memberId), { status: newStatus }); 
+                            try {
+                                // Path: artifacts/{appId}/users/{userId}/user_profile/{userId}
+                                await updateDoc(doc(firestore, getPrivateCollectionPath(memberId, 'user_profile'), memberId), { status: newStatus }); 
+                            } catch (error) {
+                                console.error(`Error updating status for member ${memberId}:`, error);
+                                showConfirmationModal(`Failed to update member status: ${error.message}`, () => {});
+                            }
                         });
                     }
                     if (e.target.classList.contains('delete-member-btn')) {
                         const memberId = e.target.dataset.id;
-                        showConfirmationModal('Are you sure you want to delete this member permanently?', async () => {
-                            // MODIFIED: Delete from user_profile using memberId as userId
-                            // Note: This only deletes the profile document, not the Firebase Auth user.
-                            await deleteDoc(doc(firestore, getPrivateCollectionPath(memberId, 'user_profile'), memberId)); 
+                        showConfirmationModal('Are you sure you want to delete this member permanently? This will delete all their associated data!', async () => {
+                            try {
+                                // Delete profile document
+                                await deleteDoc(doc(firestore, getPrivateCollectionPath(memberId, 'user_profile'), memberId)); 
+
+                                // Optionally, delete all subcollections for the user.
+                                // This requires fetching all documents in each subcollection and deleting them.
+                                // For simplicity and avoiding complex batch writes, we might leave subcollections
+                                // if the user is not actively deleted from Firebase Auth.
+                                // If full data cleanup is required, you'd iterate and delete each doc:
+                                const collectionsToDelete = ['contributions', 'loans', 'fines', 'attendance', 'notifications'];
+                                for (const collectionName of collectionsToDelete) {
+                                    const q = query(collection(firestore, getPrivateCollectionPath(memberId, collectionName)));
+                                    const snapshot = await getDocs(q);
+                                    snapshot.forEach(async (docToDelete) => {
+                                        await deleteDoc(doc(firestore, getPrivateCollectionPath(memberId, collectionName), docToDelete.id));
+                                    });
+                                }
+                                showConfirmationModal(`Member ${memberId} and their data deleted successfully.`, () => {});
+                            } catch (error) {
+                                console.error("Error deleting member:", error);
+                                showConfirmationModal(`Failed to delete member: ${error.message}`, () => {});
+                            }
                         });
                     }
                 });
 
                 memberForm.addEventListener('submit', async (e) => {
                     e.preventDefault();
-                    const memberId = document.getElementById('member-id').value; // This will be the userId for existing users
+                    let memberId = document.getElementById('member-id').value; // Existing memberId or empty for new
                     const name = document.getElementById('member-name').value;
                     const email = document.getElementById('member-email').value;
                     const status = document.getElementById('member-status').value;
@@ -1138,31 +1013,44 @@
                     
                     let profilePicUrl = document.getElementById('current-profile-pic').src; 
 
-                    let targetMemberId = memberId;
+                    if (!memberId) {
+                        // For a NEW member added via admin, generate a UUID for the userId (doc ID)
+                        memberId = `admin-gen-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`; 
+                    }
 
                     if (profilePicFile) {
-                        // If it's a new member (no memberId yet), generate a temporary ID for storage path
-                        const tempIdForStorage = memberId || Date.now(); 
-                        const storageRefPath = `profile_pictures/${tempIdForStorage}-${profilePicFile.name}`; 
+                        const storageRefPath = `profile_pictures/${memberId}-${profilePicFile.name}`; 
                         const fileRef = ref(storage, storageRefPath); 
                         await uploadBytes(fileRef, profilePicFile); 
                         profilePicUrl = await getDownloadURL(fileRef); 
                     }
 
-                    const memberData = { name, email, status, profilePicUrl };
+                    const memberData = { 
+                        name: name, 
+                        email: email, 
+                        status: status, 
+                        profilePicUrl: profilePicUrl,
+                        // Add other default fields for consistency with indexx.html's user profile creation
+                        phone: "", 
+                        nationalId: "",
+                        contribution_balance: 0,
+                        loan_balance: 0,
+                        next_meeting_date: "To be announced",
+                        createdAt: serverTimestamp() // Only set if creating, not updating
+                    };
 
                     try {
-                        if (targetMemberId) {
-                            // For existing members, update their specific user_profile document
-                            await updateDoc(doc(firestore, getPrivateCollectionPath(targetMemberId, 'user_profile'), targetMemberId), memberData); 
+                        const memberDocRef = doc(firestore, getPrivateCollectionPath(memberId, 'user_profile'), memberId);
+                        const docSnapshot = await getDoc(memberDocRef);
+
+                        if (docSnapshot.exists()) {
+                            // Update existing member
+                            await updateDoc(memberDocRef, memberData); 
+                            showConfirmationModal("Member updated successfully!", () => {});
                         } else {
-                            // For new members added via admin, create a new document in the public 'members' collection
-                            // NOTE: If you intend this to create a *full* user profile in the private path,
-                            // you would need to define a new userId (e.g., a Firebase Auth UID) here
-                            // and then use getPrivateCollectionPath(newUserId, 'user_profile').
-                            // For simplicity, this creates a public member entry as a 'placeholder' for admin view.
-                            // A more robust solution would involve creating a Firebase Auth user first.
-                            await addDoc(collection(firestore, getPublicCollectionPath('members')), memberData); 
+                            // Add new member (with their generated ID as document ID)
+                            await setDoc(memberDocRef, memberData); 
+                            showConfirmationModal("New member added successfully!", () => {});
                         }
                         memberFormModal.style.display = 'none';
                     } catch (error) {
@@ -1197,13 +1085,14 @@
                     showConfirmationModal(`Approve ${selectedIds.length} members?`, async () => {
                         for (const id of selectedIds) {
                             try {
-                                // MODIFIED: Bulk approve in user_profile
-                                await updateDoc(doc(firestore, getPrivateCollectionPath(id, 'user_profile'), id), { status: 'active' }); 
+                                // Path: artifacts/{appId}/users/{userId}/user_profile/{userId}
+                                await updateDoc(doc(firestore, getPrivateCollectionPath(id, 'user_profile'), id), { status: 'approved' }); 
                             } catch (error) {
                                 console.error(`Error bulk approving member ${id}:`, error);
                                 showConfirmationModal(`Failed to approve member ${id}: ${error.message}`, () => {});
                             }
                         }
+                        showConfirmationModal(`Successfully approved ${selectedIds.length} members.`, () => {});
                     });
                 });
 
@@ -1216,13 +1105,14 @@
                     showConfirmationModal(`Deactivate ${selectedIds.length} members?`, async () => {
                         for (const id of selectedIds) {
                             try {
-                                // MODIFIED: Bulk deactivate in user_profile
+                                // Path: artifacts/{appId}/users/{userId}/user_profile/{userId}
                                 await updateDoc(doc(firestore, getPrivateCollectionPath(id, 'user_profile'), id), { status: 'deactivated' }); 
                             } catch (error) {
                                 console.error(`Error bulk deactivating member ${id}:`, error);
                                 showConfirmationModal(`Failed to deactivate member ${id}: ${error.message}`, () => {});
                             }
                         }
+                        showConfirmationModal(`Successfully deactivated ${selectedIds.length} members.`, () => {});
                     });
                 });
             }
@@ -1284,20 +1174,16 @@
                 const contributionForm = document.getElementById('contribution-form');
                 const cancelContributionFormBtn = document.getElementById('cancel-contribution-form');
                 const contributionMemberSelect = document.getElementById('contribution-member-id');
-                let allContributionsData = [];
-                let membersMap = {}; 
-                let memberIdToEmailMap = {}; 
-
-                // Populate member dropdown (from public members and their IDs/UIDs if available)
-                // Note: The onSnapshot for this is now in initFirestoreListeners()
-                // This block will execute when renderContributionsManagement is called
-                // and will update once the snapshot fires.
+                
+                // Initial render and dropdown population
+                renderContributionsTable(allContributionsData);
+                renderMemberDropdowns(allMembersData); // Populate the member select
 
                 const renderContributionsTable = (contributionsToDisplay) => {
                     contributionsList.innerHTML = '';
                     contributionsToDisplay.forEach(contribution => {
                         const tr = document.createElement('tr');
-                        const memberName = membersMap[contribution.memberId] || 'Unknown Member';
+                        const memberName = membersMap[contribution.memberUserId] || 'Unknown Member'; // Use memberUserId from data
                         const date = contribution.date ? new Date(contribution.date.seconds * 1000).toLocaleDateString() : 'N/A';
                         tr.innerHTML = `
                             <td>${memberName}</td>
@@ -1305,8 +1191,8 @@
                             <td>${date}</td>
                             <td>${contribution.description || ''}</td>
                             <td>
-                                <button class="btn btn-primary edit-contribution-btn" data-id="${contribution.id}" data-member-id="${contribution.memberId}">Edit</button>
-                                <button class="btn delete-contribution-btn" data-id="${contribution.id}" data-member-id="${contribution.memberId}" style="background-color: #ffc107; color: black;">Delete</button>
+                                <button class="btn btn-primary edit-contribution-btn" data-id="${contribution.id}" data-member-id="${contribution.memberUserId}">Edit</button>
+                                <button class="btn delete-contribution-btn" data-id="${contribution.id}" data-member-id="${contribution.memberUserId}" style="background-color: #ffc107; color: black;">Delete</button>
                             </td>`;
                         contributionsList.appendChild(tr);
                     });
@@ -1320,7 +1206,7 @@
 
                     if (searchTerm) {
                         filtered = filtered.filter(c => 
-                            (membersMap[c.memberId] || 'Unknown Member').toLowerCase().includes(searchTerm) ||
+                            (membersMap[c.memberUserId] || 'Unknown Member').toLowerCase().includes(searchTerm) || // Use memberUserId
                             (c.description || '').toLowerCase().includes(searchTerm)
                         );
                     }
@@ -1351,12 +1237,13 @@
                 contributionsList.addEventListener('click', async (e) => {
                     if (e.target.classList.contains('edit-contribution-btn')) {
                         const contributionId = e.target.dataset.id;
-                        const memberUserId = e.target.dataset.memberId; 
+                        const memberUserId = e.target.dataset.memberId; // Get memberUserId
+                        // Path: artifacts/{appId}/users/{userId}/contributions/{docId}
                         const docSnapshot = await getDoc(doc(firestore, getPrivateCollectionPath(memberUserId, 'contributions'), contributionId)); 
                         if (docSnapshot.exists()) {
                             const contribution = docSnapshot.data();
                             document.getElementById('contribution-id').value = docSnapshot.id;
-                            document.getElementById('contribution-member-id').value = contribution.memberId; 
+                            document.getElementById('contribution-member-id').value = memberUserId; // Set memberUserId
                             document.getElementById('contribution-amount').value = contribution.amount;
                             document.getElementById('contribution-date').value = contribution.date ? new Date(contribution.date.seconds * 1000).toISOString().split('T')[0] : '';
                             document.getElementById('contribution-description').value = contribution.description || '';
@@ -1368,7 +1255,7 @@
                     }
                     if (e.target.classList.contains('delete-contribution-btn')) {
                         const contributionId = e.target.dataset.id;
-                        const memberUserId = e.target.dataset.memberId; 
+                        const memberUserId = e.target.dataset.memberId; // Get memberUserId
                         showConfirmationModal('Are you sure you want to delete this contribution?', async () => {
                             try {
                                 // Get the contribution amount before deleting to adjust balance
@@ -1378,9 +1265,11 @@
                                     deletedAmount = contributionDoc.data().amount || 0;
                                 }
 
+                                // Path: artifacts/{appId}/users/{userId}/contributions/{docId}
                                 await deleteDoc(doc(firestore, getPrivateCollectionPath(memberUserId, 'contributions'), contributionId)); 
                                 
                                 // Update user's contribution balance
+                                // Path: artifacts/{appId}/users/{userId}/user_profile/{userId}
                                 const userProfileRef = doc(firestore, getPrivateCollectionPath(memberUserId, 'user_profile'), memberUserId);
                                 const userProfileSnap = await getDoc(userProfileRef);
                                 if (userProfileSnap.exists()) {
@@ -1391,6 +1280,7 @@
                                 } else {
                                     console.warn(`User profile not found for ${memberUserId}. Cannot update contribution_balance after deletion.`);
                                 }
+                                showConfirmationModal('Contribution deleted successfully!', () => {});
                             } catch (error) {
                                 console.error("Error deleting contribution:", error);
                                 showConfirmationModal(`Failed to delete contribution: ${error.message}`, () => {});
@@ -1402,10 +1292,9 @@
                 contributionForm.addEventListener('submit', async (e) => {
                     e.preventDefault();
                     const contributionId = document.getElementById('contribution-id').value;
-                    const memberPublicId = document.getElementById('contribution-member-id').value; 
-                    const targetUserId = memberPublicId; 
+                    const memberUserId = document.getElementById('contribution-member-id').value; 
 
-                    if (!targetUserId) {
+                    if (!memberUserId) {
                         showConfirmationModal('Please select a valid member.', () => {});
                         return;
                     }
@@ -1415,7 +1304,7 @@
                     const description = document.getElementById('contribution-description').value;
 
                     const contributionData = {
-                        memberId: memberPublicId, 
+                        memberId: memberUserId, // Store the userId here
                         amount: amount,
                         date: new Date(date), 
                         description: description,
@@ -1424,16 +1313,18 @@
 
                     try {
                         let oldAmount = 0;
+                        // Path: artifacts/{appId}/users/{userId}/contributions/{docId}
                         if (contributionId) {
-                            const oldContributionDoc = await getDoc(doc(firestore, getPrivateCollectionPath(targetUserId, 'contributions'), contributionId));
+                            const oldContributionDoc = await getDoc(doc(firestore, getPrivateCollectionPath(memberUserId, 'contributions'), contributionId));
                             oldAmount = oldContributionDoc.exists() ? oldContributionDoc.data().amount || 0 : 0;
-                            await updateDoc(doc(firestore, getPrivateCollectionPath(targetUserId, 'contributions'), contributionId), contributionData); 
+                            await updateDoc(doc(firestore, getPrivateCollectionPath(memberUserId, 'contributions'), contributionId), contributionData); 
                         } else {
-                            await addDoc(collection(firestore, getPrivateCollectionPath(targetUserId, 'contributions')), contributionData); 
+                            await addDoc(collection(firestore, getPrivateCollectionPath(memberUserId, 'contributions')), contributionData); 
                         }
                         
                         // Update user's contribution balance
-                        const userProfileRef = doc(firestore, getPrivateCollectionPath(targetUserId, 'user_profile'), targetUserId);
+                        // Path: artifacts/{appId}/users/{userId}/user_profile/{userId}
+                        const userProfileRef = doc(firestore, getPrivateCollectionPath(memberUserId, 'user_profile'), memberUserId);
                         const userProfileSnap = await getDoc(userProfileRef);
                         if (userProfileSnap.exists()) {
                             const currentContributionBalance = userProfileSnap.data().contribution_balance || 0;
@@ -1442,9 +1333,10 @@
                                 contribution_balance: currentContributionBalance + balanceChange
                             });
                         } else {
-                            console.warn(`User profile not found for ${targetUserId}. Cannot update contribution_balance.`);
+                            console.warn(`User profile not found for ${memberUserId}. Cannot update contribution_balance.`);
                         }
 
+                        showConfirmationModal('Contribution saved successfully!', () => {});
                         contributionFormModal.style.display = 'none';
                     } catch (error) {
                         console.error("Error saving contribution:", error);
@@ -1464,15 +1356,15 @@
                                 valA = a.date ? a.date.toMillis() : 0;
                                 valB = b.date ? b.date.toMillis() : 0;
                             } else if (sortBy === 'memberName') { 
-                                valA = membersMap[a.memberId] || 'Unknown'; 
-                                valB = membersMap[b.memberId] || 'Unknown'; 
+                                valA = membersMap[a.memberUserId] || 'Unknown'; // Use memberUserId
+                                valB = membersMap[b.memberUserId] || 'Unknown'; // Use memberUserId
                             }
                             
                             if (typeof valA === 'string') return valA.localeCompare(valB);
                             return valA - valB;
                         });
-                        allContributionsData = sortedContributions;
-                        renderContributionsTable(allContributionsData);
+                        // Do not reassign allContributionsData.
+                        renderContributionsTable(sortedContributions);
                     });
                 });
             }
@@ -1556,20 +1448,18 @@
                 const loanForm = document.getElementById('loan-form');
                 const cancelLoanFormBtn = document.getElementById('cancel-loan-form');
                 const loanMemberSelect = document.getElementById('loan-member-id');
-                let allLoansData = [];
-                let membersMap = {};
-                let memberIdToEmailMap = {};
-
-                // Populate member dropdown (from public members)
-                // Note: The onSnapshot for this is now in initFirestoreListeners()
+                
+                // Initial render and dropdown population
+                renderLoansTable(allLoansData);
+                renderMemberDropdowns(allMembersData); // Populate the member select
 
                 const renderLoansTable = (loansToDisplay) => {
                     loansList.innerHTML = '';
                     loansToDisplay.forEach(loan => {
                         const tr = document.createElement('tr');
-                        const memberName = membersMap[loan.memberId] || 'Unknown Member';
+                        const memberName = membersMap[loan.memberUserId] || 'Unknown Member'; // Use memberUserId from data
                         const dueDate = loan.dueDate ? new Date(loan.dueDate.seconds * 1000).toLocaleDateString() : 'N/A';
-                        const balance = (loan.amount * (1 + loan.interestRate / 100)) - (loan.repaidAmount || 0);
+                        const balance = (loan.amount * (1 + (loan.interestRate / 100))) - (loan.repaidAmount || 0); // Calculate balance based on current data
 
                         tr.innerHTML = `
                             <td>${memberName}</td>
@@ -1580,9 +1470,9 @@
                             <td>Ksh ${(loan.repaidAmount || 0).toFixed(2)}</td>
                             <td>Ksh ${balance.toFixed(2)}</td>
                             <td>
-                                <button class="btn btn-primary edit-loan-btn" data-id="${loan.id}" data-member-id="${loan.memberId}">Edit</button>
-                                <button class="btn" data-action="mark-repaid" data-id="${loan.id}" data-member-id="${loan.memberId}" style="background-color: #28a745; color: white;">Mark Repaid</button>
-                                <button class="btn delete-loan-btn" data-id="${loan.id}" data-member-id="${loan.memberId}" style="background-color: #ffc107; color: black;">Delete</button>
+                                <button class="btn btn-primary edit-loan-btn" data-id="${loan.id}" data-member-id="${loan.memberUserId}">Edit</button>
+                                <button class="btn" data-action="mark-repaid" data-id="${loan.id}" data-member-id="${loan.memberUserId}" style="background-color: #28a745; color: white;">Mark Repaid</button>
+                                <button class="btn delete-loan-btn" data-id="${loan.id}" data-member-id="${loan.memberUserId}" style="background-color: #ffc107; color: black;">Delete</button>
                             </td>`;
                         loansList.appendChild(tr);
                     });
@@ -1596,7 +1486,7 @@
 
                     if (searchTerm) {
                         filtered = filtered.filter(l => 
-                            (membersMap[l.memberId] || 'Unknown Member').toLowerCase().includes(searchTerm) ||
+                            (membersMap[l.memberUserId] || 'Unknown Member').toLowerCase().includes(searchTerm) || // Use memberUserId
                             (l.status || '').toLowerCase().includes(searchTerm)
                         );
                     }
@@ -1625,11 +1515,12 @@
                     if (e.target.classList.contains('edit-loan-btn')) {
                         const loanId = e.target.dataset.id;
                         const memberUserId = e.target.dataset.memberId;
+                        // Path: artifacts/{appId}/users/{userId}/loans/{docId}
                         const docSnapshot = await getDoc(doc(firestore, getPrivateCollectionPath(memberUserId, 'loans'), loanId)); 
                         if (docSnapshot.exists()) {
                             const loan = docSnapshot.data();
                             document.getElementById('loan-id').value = docSnapshot.id;
-                            document.getElementById('loan-member-id').value = loan.memberId;
+                            document.getElementById('loan-member-id').value = memberUserId;
                             document.getElementById('loan-amount').value = loan.amount;
                             document.getElementById('loan-interest-rate').value = loan.interestRate;
                             document.getElementById('loan-due-date').value = loan.dueDate ? new Date(loan.dueDate.seconds * 1000).toISOString().split('T')[0] : '';
@@ -1649,20 +1540,23 @@
                             const docSnapshot = await getDoc(docRef); 
                             if (docSnapshot.exists()) {
                                 const loan = docSnapshot.data();
-                                const updatedRepaidAmount = loan.amount * (1 + loan.interestRate / 100);
+                                const updatedRepaidAmount = loan.amount * (1 + (loan.interestRate || 0) / 100); // Calculate total amount due
                                 try {
                                     await updateDoc(docRef, { status: 'repaid', repaidAmount: updatedRepaidAmount }); 
 
+                                    // Update user's loan balance in their profile
                                     const userProfileRef = doc(firestore, getPrivateCollectionPath(memberUserId, 'user_profile'), memberUserId);
                                     const userProfileSnap = await getDoc(userProfileRef);
                                     if (userProfileSnap.exists()) {
                                         const currentLoanBalance = userProfileSnap.data().loan_balance || 0;
+                                        // Subtract the full amount of this loan from user's balance
                                         await updateDoc(userProfileRef, {
-                                            loan_balance: currentLoanBalance - updatedRepaidAmount 
+                                            loan_balance: currentLoanBalance - (loan.amount * (1 + (loan.interestRate || 0) / 100))
                                         });
                                     } else {
                                         console.warn(`User profile not found for ${memberUserId}. Cannot update loan_balance.`);
                                     }
+                                    showConfirmationModal('Loan marked as repaid successfully!', () => {});
                                 } catch (error) {
                                     console.error("Error marking loan repaid:", error);
                                     showConfirmationModal(`Failed to mark loan repaid: ${error.message}`, () => {});
@@ -1682,26 +1576,29 @@
                                 const loanDoc = await getDoc(doc(firestore, getPrivateCollectionPath(memberUserId, 'loans'), loanId));
                                 let deletedLoanAmount = 0;
                                 let deletedRepaidAmount = 0;
+                                let deletedInterestRate = 0;
                                 if (loanDoc.exists()) {
                                     const loanData = loanDoc.data();
                                     deletedLoanAmount = loanData.amount || 0;
                                     deletedRepaidAmount = loanData.repaidAmount || 0;
+                                    deletedInterestRate = loanData.interestRate || 0;
                                 }
 
                                 await deleteDoc(doc(firestore, getPrivateCollectionPath(memberUserId, 'loans'), loanId)); 
                                 
-                                // Adjust user's loan balance
+                                // Adjust user's loan balance in their profile
                                 const userProfileRef = doc(firestore, getPrivateCollectionPath(memberUserId, 'user_profile'), memberUserId);
                                 const userProfileSnap = await getDoc(userProfileRef);
                                 if (userProfileSnap.exists()) {
                                     const currentLoanBalance = userProfileSnap.data().loan_balance || 0;
-                                    const amountToDeduct = (deletedLoanAmount * (1 + (loanDoc.data().interestRate || 0) / 100)) - deletedRepaidAmount;
+                                    const amountToDeduct = (deletedLoanAmount * (1 + deletedInterestRate / 100)) - deletedRepaidAmount;
                                     await updateDoc(userProfileRef, {
                                         loan_balance: currentLoanBalance - amountToDeduct
                                     });
                                 } else {
                                     console.warn(`User profile not found for ${memberUserId}. Cannot update loan_balance after deletion.`);
                                 }
+                                showConfirmationModal('Loan record deleted successfully!', () => {});
                             } catch (error) {
                                 console.error("Error deleting loan:", error);
                                 showConfirmationModal(`Failed to delete loan: ${error.message}`, () => {});
@@ -1713,10 +1610,9 @@
                 loanForm.addEventListener('submit', async (e) => {
                     e.preventDefault();
                     const loanId = document.getElementById('loan-id').value;
-                    const memberPublicId = document.getElementById('loan-member-id').value;
-                    const targetUserId = memberPublicId; 
+                    const memberUserId = document.getElementById('loan-member-id').value;
 
-                    if (!targetUserId) {
+                    if (!memberUserId) {
                         showConfirmationModal('Please select a valid member.', () => {});
                         return;
                     }
@@ -1728,7 +1624,7 @@
                     const repaidAmount = parseFloat(document.getElementById('loan-repaid-amount').value) || 0;
 
                     const loanData = {
-                        memberId: memberPublicId,
+                        memberId: memberUserId,
                         amount: amount,
                         interestRate: interestRate,
                         dueDate: new Date(dueDate), 
@@ -1738,47 +1634,39 @@
                     };
 
                     try {
-                        let oldLoanAmount = 0;
-                        let oldRepaidAmount = 0;
+                        const userProfileRef = doc(firestore, getPrivateCollectionPath(memberUserId, 'user_profile'), memberUserId);
+                        const userProfileSnap = await getDoc(userProfileRef);
+                        let currentLoanBalance = userProfileSnap.exists() ? userProfileSnap.data().loan_balance || 0 : 0;
+                        
                         if (loanId) {
-                            const oldLoanDoc = await getDoc(doc(firestore, getPrivateCollectionPath(targetUserId, 'loans'), loanId));
+                            // Update existing loan
+                            const oldLoanDoc = await getDoc(doc(firestore, getPrivateCollectionPath(memberUserId, 'loans'), loanId));
+                            let oldLoanAmount = 0;
+                            let oldRepaidAmount = 0;
+                            let oldInterestRate = 0;
                             if (oldLoanDoc.exists()) {
                                 oldLoanAmount = oldLoanDoc.data().amount || 0;
                                 oldRepaidAmount = oldLoanDoc.data().repaidAmount || 0;
+                                oldInterestRate = oldLoanDoc.data().interestRate || 0;
                             }
-                            await updateDoc(doc(firestore, getPrivateCollectionPath(targetUserId, 'loans'), loanId), loanData); 
+                            await updateDoc(doc(firestore, getPrivateCollectionPath(memberUserId, 'loans'), loanId), loanData); 
                             
-                            const userProfileRef = doc(firestore, getPrivateCollectionPath(targetUserId, 'user_profile'), targetUserId);
-                            const userProfileSnap = await getDoc(userProfileRef);
-                            if (userProfileSnap.exists()) {
-                                const currentLoanBalance = userProfileSnap.data().loan_balance || 0;
-                                // Calculate the old actual balance of this loan
-                                const oldActualLoanBalance = (oldLoanAmount * (1 + interestRate / 100)) - oldRepaidAmount;
-                                // Calculate the new actual balance of this loan
-                                const newActualLoanBalance = (amount * (1 + interestRate / 100)) - repaidAmount;
-                                // The change in the user's overall loan balance is new loan balance minus old loan balance
-                                const balanceChange = newActualLoanBalance - oldActualLoanBalance;
-                                await updateDoc(userProfileRef, {
-                                    loan_balance: currentLoanBalance + balanceChange
-                                });
-                            } else {
-                                console.warn(`User profile not found for ${targetUserId}. Cannot update loan_balance.`);
-                            }
+                            // Adjust user's loan balance
+                            const oldOutstanding = (oldLoanAmount * (1 + oldInterestRate / 100)) - oldRepaidAmount;
+                            const newOutstanding = (amount * (1 + interestRate / 100)) - repaidAmount;
+                            await updateDoc(userProfileRef, {
+                                loan_balance: currentLoanBalance - oldOutstanding + newOutstanding
+                            });
                         } else {
-                            await addDoc(collection(firestore, getPrivateCollectionPath(targetUserId, 'loans')), loanData); 
-                            const userProfileRef = doc(firestore, getPrivateCollectionPath(targetUserId, 'user_profile'), targetUserId);
-                            const userProfileSnap = await getDoc(userProfileRef);
-                            if (userProfileSnap.exists()) {
-                                const currentLoanBalance = userProfileSnap.data().loan_balance || 0;
-                                // For a new loan, add its full outstanding amount to the user's balance
-                                const newLoanOutstanding = (amount * (1 + interestRate / 100)) - repaidAmount;
-                                await updateDoc(userProfileRef, {
-                                    loan_balance: currentLoanBalance + newLoanOutstanding
-                                });
-                            } else {
-                                console.warn(`User profile not found for ${targetUserId}. Cannot update loan_balance.`);
-                            }
+                            // Add new loan
+                            await addDoc(collection(firestore, getPrivateCollectionPath(memberUserId, 'loans')), loanData); 
+                            // Add new loan's outstanding to user's balance
+                            const newOutstanding = (amount * (1 + interestRate / 100)) - repaidAmount;
+                            await updateDoc(userProfileRef, {
+                                loan_balance: currentLoanBalance + newOutstanding
+                            });
                         }
+                        showConfirmationModal('Loan saved successfully!', () => {});
                         loanFormModal.style.display = 'none';
                     } catch (error) {
                         console.error("Error saving loan:", error);
@@ -1797,15 +1685,15 @@
                                 valA = a.dueDate ? a.dueDate.toMillis() : 0;
                                 valB = b.dueDate ? b.dueDate.toMillis() : 0;
                             } else if (sortBy === 'memberName') { 
-                                valA = membersMap[a.memberId] || 'Unknown'; 
-                                valB = membersMap[b.memberId] || 'Unknown'; 
+                                valA = membersMap[a.memberUserId] || 'Unknown'; // Use memberUserId
+                                valB = membersMap[b.memberUserId] || 'Unknown'; // Use memberUserId
                             }
                             
                             if (typeof valA === 'string') return valA.localeCompare(valB);
                             return valA - valB;
                         });
-                        allLoansData = sortedLoans;
-                        renderLoansTable(allLoansData);
+                        // Do not reassign allLoansData.
+                        renderLoansTable(sortedLoans);
                     });
                 });
             }
@@ -1876,12 +1764,14 @@
                 const meetingFormModal = document.getElementById('meeting-form-modal');
                 const meetingForm = document.getElementById('meeting-form');
                 const cancelMeetingFormBtn = document.getElementById('cancel-meeting-form');
-                let allMeetingsData = [];
+                
+                renderMeetingsTable(allMeetingsData); // Initial render
 
                 const renderMeetingsTable = (meetingsToDisplay) => {
                     meetingsList.innerHTML = '';
                     meetingsToDisplay.forEach(meeting => {
                         const tr = document.createElement('tr');
+                        // Use 'date' and 'time' fields for display
                         const date = meeting.date ? new Date(meeting.date.seconds * 1000).toLocaleDateString() : 'N/A';
                         tr.innerHTML = `
                             <td>${meeting.title}</td>
@@ -1901,7 +1791,7 @@
                 meetingSearchInput.addEventListener('keyup', () => {
                     const searchTerm = meetingSearchInput.value.toLowerCase();
                     const filteredMeetings = allMeetingsData.filter(m => 
-                        m.title.toLowerCase().includes(searchTerm) || 
+                        (m.title || '').toLowerCase().includes(searchTerm) || 
                         (m.description || '').toLowerCase().includes(searchTerm) ||
                         (m.date ? new Date(m.date.seconds * 1000).toLocaleDateString().includes(searchTerm) : false)
                     );
@@ -1922,6 +1812,7 @@
                 meetingsList.addEventListener('click', async (e) => {
                     if (e.target.classList.contains('edit-meeting-btn')) {
                         const meetingId = e.target.dataset.id;
+                        // Path: artifacts/{appId}/public/data/meetings/{docId}
                         const docSnapshot = await getDoc(doc(firestore, getPublicCollectionPath('meetings'), meetingId)); 
                         if (docSnapshot.exists()) {
                             const meeting = docSnapshot.data();
@@ -1942,7 +1833,9 @@
                         const meetingId = e.target.dataset.id;
                         showConfirmationModal('Are you sure you want to delete this meeting/notice?', async () => {
                             try {
+                                // Path: artifacts/{appId}/public/data/meetings/{docId}
                                 await deleteDoc(doc(firestore, getPublicCollectionPath('meetings'), meetingId)); 
+                                showConfirmationModal('Meeting/notice deleted successfully!', () => {});
                             } catch (error) {
                                 console.error("Error deleting meeting:", error);
                                 showConfirmationModal(`Failed to delete meeting: ${error.message}`, () => {});
@@ -1968,15 +1861,18 @@
                         location: location,
                         description: description,
                         type: type,
-                        timestamp: serverTimestamp()
+                        timestamp: serverTimestamp() // Use timestamp for creation/last update
                     };
 
                     try {
                         if (meetingId) {
+                            // Path: artifacts/{appId}/public/data/meetings/{docId}
                             await updateDoc(doc(firestore, getPublicCollectionPath('meetings'), meetingId), meetingData); 
                         } else {
+                            // Path: artifacts/{appId}/public/data/meetings
                             await addDoc(collection(firestore, getPublicCollectionPath('meetings')), meetingData); 
                         }
+                        showConfirmationModal('Meeting/Notice saved successfully!', () => {});
                         meetingFormModal.style.display = 'none';
                     } catch (error) {
                         console.error("Error saving meeting:", error);
@@ -2000,8 +1896,8 @@
                             if (typeof valA === 'string') return valA.localeCompare(valB);
                             return valA - valB;
                         });
-                        allMeetingsData = sortedMeetings;
-                        renderMeetingsTable(allMeetingsData);
+                        // Do not reassign allMeetingsData.
+                        renderMeetingsTable(sortedMeetings);
                     });
                 });
             }
@@ -2079,30 +1975,27 @@
                 const fineMemberSelect = document.getElementById('fine-member-id');
                 const selectAllFinesCheckbox = document.getElementById('select-all-fines');
                 const bulkMarkPaidBtn = document.getElementById('bulk-mark-paid-btn');
-                let allFinesData = [];
-                let membersMap = {};
-                let memberIdToEmailMap = {};
-
-                // Populate member dropdown
-                // Note: The onSnapshot for this is now in initFirestoreListeners()
+                
+                renderFinesTable(allFinesData); // Initial render
+                renderMemberDropdowns(allMembersData); // Populate the member select
 
                 const renderFinesTable = (finesToDisplay) => {
                     finesList.innerHTML = '';
                     finesToDisplay.forEach(fine => {
                         const tr = document.createElement('tr');
-                        const memberName = membersMap[fine.memberId] || 'Unknown Member';
+                        const memberName = membersMap[fine.memberUserId] || 'Unknown Member'; // Use memberUserId
                         const dateIssued = fine.dateIssued ? new Date(fine.dateIssued.seconds * 1000).toLocaleDateString() : 'N/A';
                         tr.innerHTML = `
-                            <td><input type="checkbox" class="fine-checkbox" data-id="${fine.id}" data-member-id="${fine.memberId}"></td>
+                            <td><input type="checkbox" class="fine-checkbox" data-id="${fine.id}" data-member-id="${fine.memberUserId}"></td>
                             <td>${memberName}</td>
                             <td>${fine.reason}</td>
                             <td>Ksh ${fine.amount.toFixed(2)}</td>
                             <td>${dateIssued}</td>
                             <td>${fine.status}</td>
                             <td>
-                                <button class="btn btn-primary edit-fine-btn" data-id="${fine.id}" data-member-id="${fine.memberId}">Edit</button>
-                                ${fine.status === 'unpaid' ? `<button class="btn" data-action="mark-paid" data-id="${fine.id}" data-member-id="${fine.memberId}" style="background-color: #28a745; color: white;">Mark Paid</button>` : ''}
-                                <button class="btn delete-fine-btn" data-id="${fine.id}" data-member-id="${fine.memberId}" style="background-color: #ffc107; color: black;">Delete</button>
+                                <button class="btn btn-primary edit-fine-btn" data-id="${fine.id}" data-member-id="${fine.memberUserId}">Edit</button>
+                                ${fine.status === 'unpaid' ? `<button class="btn" data-action="mark-paid" data-id="${fine.id}" data-member-id="${fine.memberUserId}" style="background-color: #28a745; color: white;">Mark Paid</button>` : ''}
+                                <button class="btn delete-fine-btn" data-id="${fine.id}" data-member-id="${fine.memberUserId}" style="background-color: #ffc107; color: black;">Delete</button>
                             </td>`;
                         finesList.appendChild(tr);
                     });
@@ -2116,7 +2009,7 @@
 
                     if (searchTerm) {
                         filtered = filtered.filter(f => 
-                            (membersMap[f.memberId] || 'Unknown Member').toLowerCase().includes(searchTerm) ||
+                            (membersMap[f.memberUserId] || 'Unknown Member').toLowerCase().includes(searchTerm) || // Use memberUserId
                             (f.reason || '').toLowerCase().includes(searchTerm)
                         );
                     }
@@ -2145,11 +2038,12 @@
                     if (e.target.classList.contains('edit-fine-btn')) {
                         const fineId = e.target.dataset.id;
                         const memberUserId = e.target.dataset.memberId;
+                        // Path: artifacts/{appId}/users/{userId}/fines/{docId}
                         const docSnapshot = await getDoc(doc(firestore, getPrivateCollectionPath(memberUserId, 'fines'), fineId)); 
                         if (docSnapshot.exists()) {
                             const fine = docSnapshot.data();
                             document.getElementById('fine-id').value = docSnapshot.id;
-                            document.getElementById('fine-member-id').value = fine.memberId;
+                            document.getElementById('fine-member-id').value = memberUserId;
                             document.getElementById('fine-reason').value = fine.reason;
                             document.getElementById('fine-amount').value = fine.amount;
                             document.getElementById('fine-date-issued').value = fine.dateIssued ? new Date(fine.dateIssued.seconds * 1000).toISOString().split('T')[0] : '';
@@ -2165,7 +2059,9 @@
                         const memberUserId = e.target.dataset.memberId;
                         showConfirmationModal('Mark this fine as paid?', async () => {
                             try {
+                                // Path: artifacts/{appId}/users/{userId}/fines/{docId}
                                 await updateDoc(doc(firestore, getPrivateCollectionPath(memberUserId, 'fines'), fineId), { status: 'paid' }); 
+                                showConfirmationModal('Fine marked as paid successfully!', () => {});
                             } catch (error) {
                                 console.error("Error marking fine paid:", error);
                                 showConfirmationModal(`Failed to mark fine paid: ${error.message}`, () => {});
@@ -2177,7 +2073,9 @@
                         const memberUserId = e.target.dataset.memberId;
                         showConfirmationModal('Are you sure you want to delete this fine record?', async () => {
                             try {
+                                // Path: artifacts/{appId}/users/{userId}/fines/{docId}
                                 await deleteDoc(doc(firestore, getPrivateCollectionPath(memberUserId, 'fines'), fineId)); 
+                                showConfirmationModal('Fine record deleted successfully!', () => {});
                             } catch (error) {
                                 console.error("Error deleting fine:", error);
                                 showConfirmationModal(`Failed to delete fine: ${error.message}`, () => {});
@@ -2189,10 +2087,9 @@
                 fineForm.addEventListener('submit', async (e) => {
                     e.preventDefault();
                     const fineId = document.getElementById('fine-id').value;
-                    const memberPublicId = document.getElementById('fine-member-id').value;
-                    const targetUserId = memberPublicId; 
+                    const memberUserId = document.getElementById('fine-member-id').value;
 
-                    if (!targetUserId) {
+                    if (!memberUserId) {
                         showConfirmationModal('Please select a valid member.', () => {});
                         return;
                     }
@@ -2203,7 +2100,7 @@
                     const status = document.getElementById('fine-status').value;
 
                     const fineData = {
-                        memberId: memberPublicId,
+                        memberId: memberUserId, // Store the userId here
                         reason: reason,
                         amount: amount,
                         dateIssued: new Date(dateIssued), 
@@ -2213,10 +2110,13 @@
 
                     try {
                         if (fineId) {
-                            await updateDoc(doc(firestore, getPrivateCollectionPath(targetUserId, 'fines'), fineId), fineData); 
+                            // Path: artifacts/{appId}/users/{userId}/fines/{docId}
+                            await updateDoc(doc(firestore, getPrivateCollectionPath(memberUserId, 'fines'), fineId), fineData); 
                         } else {
-                            await addDoc(collection(firestore, getPrivateCollectionPath(targetUserId, 'fines')), fineData); 
+                            // Path: artifacts/{appId}/users/{userId}/fines
+                            await addDoc(collection(firestore, getPrivateCollectionPath(memberUserId, 'fines')), fineData); 
                         }
+                        showConfirmationModal('Fine saved successfully!', () => {});
                         fineFormModal.style.display = 'none';
                     } catch (error) {
                         console.error("Error saving fine:", error);
@@ -2250,12 +2150,14 @@
                     showConfirmationModal(`Mark ${selected.length} fines as paid?`, async () => {
                         for (const item of selected) {
                             try {
+                                // Path: artifacts/{appId}/users/{userId}/fines/{docId}
                                 await updateDoc(doc(firestore, getPrivateCollectionPath(item.memberId, 'fines'), item.id), { status: 'paid' }); 
                             } catch (error) {
                                 console.error(`Error bulk marking fine ${item.id} as paid:`, error);
                                 showConfirmationModal(`Failed to mark fine ${item.id} as paid: ${error.message}`, () => {});
                             }
                         }
+                        showConfirmationModal(`Successfully marked ${selected.length} fines as paid.`, () => {});
                     });
                 });
 
@@ -2271,15 +2173,15 @@
                                 valA = a.dateIssued ? a.dateIssued.toMillis() : 0;
                                 valB = b.dateIssued ? b.dateIssued.toMillis() : 0;
                             } else if (sortBy === 'memberName') { 
-                                valA = membersMap[a.memberId] || 'Unknown'; 
-                                valB = membersMap[b.memberId] || 'Unknown'; 
+                                valA = membersMap[a.memberUserId] || 'Unknown'; // Use memberUserId
+                                valB = membersMap[b.memberUserId] || 'Unknown'; // Use memberUserId
                             }
                             
                             if (typeof valA === 'string') return valA.localeCompare(valB);
                             return valA - valB;
                         });
-                        allFinesData = sortedFines;
-                        renderFinesTable(allFinesData);
+                        // Do not reassign allFinesData.
+                        renderFinesTable(sortedFines);
                     });
                 });
             }
@@ -2354,7 +2256,8 @@
                 const investmentFormModal = document.getElementById('investment-form-modal');
                 const investmentForm = document.getElementById('investment-form');
                 const cancelInvestmentFormBtn = document.getElementById('cancel-investment-form');
-                let allInvestmentsData = [];
+                
+                renderInvestmentsTable(allInvestmentsData); // Initial render
 
                 const renderInvestmentsTable = (investmentsToDisplay) => {
                     investmentsList.innerHTML = '';
@@ -2411,6 +2314,7 @@
                 investmentsList.addEventListener('click', async (e) => {
                     if (e.target.classList.contains('edit-investment-btn')) {
                         const investmentId = e.target.dataset.id;
+                        // Path: artifacts/{appId}/public/data/investments/{docId}
                         const docSnapshot = await getDoc(doc(firestore, getPublicCollectionPath('investments'), investmentId)); 
                         if (docSnapshot.exists()) {
                             const investment = docSnapshot.data();
@@ -2430,7 +2334,9 @@
                         const investmentId = e.target.dataset.id;
                         showConfirmationModal('Mark this investment as completed?', async () => {
                             try {
+                                // Path: artifacts/{appId}/public/data/investments/{docId}
                                 await updateDoc(doc(firestore, getPublicCollectionPath('investments'), investmentId), { status: 'completed' }); 
+                                showConfirmationModal('Investment marked as completed successfully!', () => {});
                             } catch (error) {
                                 console.error("Error marking investment completed:", error);
                                 showConfirmationModal(`Failed to mark investment completed: ${error.message}`, () => {});
@@ -2441,7 +2347,9 @@
                         const investmentId = e.target.dataset.id;
                         showConfirmationModal('Are you sure you want to delete this investment?', async () => {
                             try {
+                                // Path: artifacts/{appId}/public/data/investments/{docId}
                                 await deleteDoc(doc(firestore, getPublicCollectionPath('investments'), investmentId)); 
+                                showConfirmationModal('Investment deleted successfully!', () => {});
                             } catch (error) {
                                 console.error("Error deleting investment:", error);
                                 showConfirmationModal(`Failed to delete investment: ${error.message}`, () => {});
@@ -2465,15 +2373,18 @@
                         targetAmount: targetAmount,
                         pledgedAmount: pledgedAmount,
                         status: status,
-                        timestamp: serverTimestamp()
+                        timestamp: serverTimestamp() // Use timestamp for creation/last update
                     };
 
                     try {
                         if (investmentId) {
+                            // Path: artifacts/{appId}/public/data/investments/{docId}
                             await updateDoc(doc(firestore, getPublicCollectionPath('investments'), investmentId), investmentData); 
                         } else {
+                            // Path: artifacts/{appId}/public/data/investments
                             await addDoc(collection(firestore, getPublicCollectionPath('investments')), investmentData); 
                         }
+                        showConfirmationModal('Investment saved successfully!', () => {});
                         investmentFormModal.style.display = 'none';
                     } catch (error) {
                         console.error("Error saving investment:", error);
@@ -2492,8 +2403,8 @@
                             if (typeof valA === 'string') return valA.localeCompare(valB);
                             return valA - valB;
                         });
-                        allInvestmentsData = sortedInvestments;
-                        renderInvestmentsTable(allInvestmentsData);
+                        // Do not reassign allInvestmentsData.
+                        renderInvestmentsTable(sortedInvestments);
                     });
                 });
             }
@@ -2565,7 +2476,8 @@
                 const cancelPollFormBtn = document.getElementById('cancel-poll-form');
                 const pollResultsModal = document.getElementById('poll-results-modal');
                 const closePollResultsModalBtn = document.getElementById('close-poll-results-modal');
-                let allPollsData = [];
+                
+                renderPollsTable(allPollsData); // Initial render
 
                 const renderPollsTable = (pollsToDisplay) => {
                     pollsList.innerHTML = '';
@@ -2611,13 +2523,15 @@
                 pollsList.addEventListener('click', async (e) => {
                     if (e.target.classList.contains('edit-poll-btn')) {
                         const pollId = e.target.dataset.id;
+                        // Path: artifacts/{appId}/public/data/polls/{docId}
                         const docSnapshot = await getDoc(doc(firestore, getPublicCollectionPath('polls'), pollId)); 
                         if (docSnapshot.exists()) {
                             const poll = docSnapshot.data();
                             document.getElementById('poll-id').value = docSnapshot.id;
                             document.getElementById('poll-title').value = poll.title;
                             document.getElementById('poll-description').value = poll.description || '';
-                            document.getElementById('poll-options').value = poll.options.join('\n') || '';
+                            // Ensure options are handled correctly (array to newline separated string)
+                            document.getElementById('poll-options').value = Array.isArray(poll.options) ? poll.options.join('\n') : '';
                             document.getElementById('poll-status').value = poll.status;
                             pollFormModal.style.display = 'flex';
                         } else {
@@ -2629,7 +2543,9 @@
                         const pollId = e.target.dataset.id;
                         showConfirmationModal('Are you sure you want to close this poll?', async () => {
                             try {
+                                // Path: artifacts/{appId}/public/data/polls/{docId}
                                 await updateDoc(doc(firestore, getPublicCollectionPath('polls'), pollId), { status: 'closed' }); 
+                                showConfirmationModal('Poll closed successfully!', () => {});
                             } catch (error) {
                                 console.error("Error closing poll:", error);
                                 showConfirmationModal(`Failed to close poll: ${error.message}`, () => {});
@@ -2638,50 +2554,51 @@
                     }
                     if (e.target.dataset.action === 'view-results') {
                         const pollId = e.target.dataset.id;
+                        // Path: artifacts/{appId}/public/data/polls/{docId}
                         const docSnapshot = await getDoc(doc(firestore, getPublicCollectionPath('polls'), pollId)); 
                         if (docSnapshot.exists()) {
                             const poll = docSnapshot.data();
                             document.getElementById('poll-results-title').textContent = `Results for: ${poll.title}`;
                             
-                            const pollResultsChartCtx = document.getElementById('poll-results-chart').getContext('2d');
-                            if (Chart.getChart(pollResultsChartCtx)) { 
-                                Chart.getChart(pollResultsChartCtx).destroy();
-                            }
+                            const pollResultsChartCtx = document.getElementById('poll-results-chart');
+                            if (pollResultsChartCtx) { // Ensure canvas exists
+                                const chartInstance = Chart.getChart(pollResultsChartCtx);
+                                if (chartInstance) { 
+                                    chartInstance.destroy();
+                                }
 
-                            const labels = poll.options || [];
-                            const data = labels.map(label => poll.votes?.[label] || 0); 
+                                const labels = poll.options || [];
+                                const data = labels.map(label => poll.votes?.[label] || 0); 
 
-                            window.myPollChart = new Chart(pollResultsChartCtx, {
-                                type: 'bar',
-                                data: {
-                                    labels: labels,
-                                    datasets: [{
-                                        label: 'Number of Votes',
-                                        data: data,
-                                        backgroundColor: [
-                                            'rgba(128, 0, 0, 0.6)', 'rgba(54, 162, 235, 0.6)', 'rgba(255, 206, 86, 0.6)',
-                                            'rgba(75, 192, 192, 0.6)', 'rgba(153, 102, 255, 0.6)', 'rgba(255, 159, 64, 0.6)'
-                                        ],
-                                        borderColor: [
-                                            'rgba(128, 0, 0, 1)', 'rgba(54, 162, 235, 1)', 'rgba(255, 206, 86, 1)',
-                                            'rgba(75, 192, 192, 1)', 'rgba(153, 102, 255, 1)', 'rgba(255, 159, 64, 1)'
-                                        ],
-                                        borderWidth: 1
-                                    }]
-                                },
-                                options: {
-                                    responsive: true,
-                                    maintainAspectRatio: false,
-                                    scales: {
-                                        y: {
-                                            beginAtZero: true,
-                                            ticks: {
-                                                stepSize: 1
-                                            }
+                                new Chart(pollResultsChartCtx.getContext('2d'), {
+                                    type: 'bar',
+                                    data: {
+                                        labels: labels,
+                                        datasets: [{
+                                            label: 'Number of Votes',
+                                            data: data,
+                                            backgroundColor: [
+                                                'rgba(128, 0, 0, 0.6)', 'rgba(54, 162, 235, 0.6)', 'rgba(255, 206, 86, 0.6)',
+                                                'rgba(75, 192, 192, 0.6)', 'rgba(153, 102, 255, 0.6)', 'rgba(255, 159, 64, 0.6)'
+                                            ],
+                                            borderColor: [
+                                                'rgba(128, 0, 0, 1)', 'rgba(54, 162, 235, 1)', 'rgba(255, 206, 86, 1)',
+                                                'rgba(75, 192, 192, 1)', 'rgba(153, 102, 255, 1)', 'rgba(255, 159, 64, 1)'
+                                            ],
+                                            borderWidth: 1
+                                        }]
+                                    },
+                                    options: {
+                                        responsive: true,
+                                        maintainAspectRatio: false,
+                                        scales: {
+                                            y: { beginAtZero: true, ticks: { stepSize: 1 } }
                                         }
                                     }
-                                }
-                            });
+                                });
+                            } else {
+                                console.error("Poll results canvas not found.");
+                            }
                             pollResultsModal.style.display = 'flex';
                         } else {
                             console.error(`Poll document not found for ID: ${pollId}`);
@@ -2692,7 +2609,9 @@
                         const pollId = e.target.dataset.id;
                         showConfirmationModal('Are you sure you want to delete this poll?', async () => {
                             try {
+                                // Path: artifacts/{appId}/public/data/polls/{docId}
                                 await deleteDoc(doc(firestore, getPublicCollectionPath('polls'), pollId)); 
+                                showConfirmationModal('Poll deleted successfully!', () => {});
                             } catch (error) {
                                 console.error("Error deleting poll:", error);
                                 showConfirmationModal(`Failed to delete poll: ${error.message}`, () => {});
@@ -2713,14 +2632,22 @@
                     const options = document.getElementById('poll-options').value.split('\n').map(opt => opt.trim()).filter(opt => opt !== '');
                     const status = document.getElementById('poll-status').value;
 
+                    if (options.length < 2) {
+                        showConfirmationModal('Please provide at least two options for the poll.', () => {});
+                        return;
+                    }
+
                     let votes = {};
                     if (pollId) { 
+                        // If editing an existing poll, preserve existing votes for unchanged options
+                        // Path: artifacts/{appId}/public/data/polls/{docId}
                         const existingPollDoc = await getDoc(doc(firestore, getPublicCollectionPath('polls'), pollId)); 
                         const existingPoll = existingPollDoc.data();
                         if (existingPoll && existingPoll.votes) {
                             votes = { ...existingPoll.votes };
                         }
                     }
+                    // Initialize votes for new options
                     options.forEach(option => {
                         if (votes[option] === undefined) {
                             votes[option] = 0;
@@ -2733,15 +2660,18 @@
                         options: options,
                         status: status,
                         votes: votes,
-                        timestamp: serverTimestamp()
+                        timestamp: serverTimestamp() // Use timestamp for creation/last update
                     };
 
                     try {
                         if (pollId) {
+                            // Path: artifacts/{appId}/public/data/polls/{docId}
                             await updateDoc(doc(firestore, getPublicCollectionPath('polls'), pollId), pollData); 
                         } else {
+                            // Path: artifacts/{appId}/public/data/polls
                             await addDoc(collection(firestore, getPublicCollectionPath('polls')), pollData); 
                         }
+                        showConfirmationModal('Poll saved successfully!', () => {});
                         pollFormModal.style.display = 'none';
                     } catch (error) {
                         console.error("Error saving poll:", error);
@@ -2760,8 +2690,8 @@
                             if (typeof valA === 'string') return valA.localeCompare(valB);
                             return valA - valB;
                         });
-                        allPollsData = sortedPolls;
-                        renderPollsTable(allPollsData);
+                        // Do not reassign allPollsData.
+                        renderPollsTable(sortedPolls);
                     });
                 });
             }
@@ -2812,20 +2742,21 @@
                 const documentFormModal = document.getElementById('document-form-modal');
                 const documentForm = document.getElementById('document-form');
                 const cancelDocumentFormBtn = document.getElementById('cancel-document-form');
-                let allDocumentsData = [];
+                
+                renderDocumentsTable(allDocumentsData); // Initial render
 
                 const renderDocumentsTable = (documentsToDisplay) => {
                     documentsList.innerHTML = '';
                     documentsToDisplay.forEach(doc => {
                         const tr = document.createElement('tr');
-                        const uploadDate = doc.uploadDate ? new Date(doc.uploadDate.seconds * 1000).toLocaleDateString() : 'N/A';
+                        const uploadDate = doc.uploadedAt ? new Date(doc.uploadedAt.seconds * 1000).toLocaleDateString() : 'N/A'; // Use 'uploadedAt'
                         tr.innerHTML = `
-                            <td>${doc.name}</td>
+                            <td>${doc.title}</td> <!-- Use 'title' for consistency -->
                             <td>${doc.fileType || 'N/A'}</td>
                             <td>${doc.uploadedBy || 'Admin'}</td>
                             <td>${uploadDate}</td>
                             <td>
-                                <a href="${doc.downloadUrl}" target="_blank" class="btn btn-primary" style="background-color: #007bff;">Download</a>
+                                <a href="${doc.fileUrl}" target="_blank" class="btn btn-primary" style="background-color: #007bff;">Download</a> <!-- Use 'fileUrl' -->
                                 <button class="btn delete-document-btn" data-id="${doc.id}" data-path="${doc.filePath}" style="background-color: #ffc107; color: black;">Delete</button>
                             </td>`;
                         documentsList.appendChild(tr);
@@ -2836,7 +2767,7 @@
                 documentSearchInput.addEventListener('keyup', () => {
                     const searchTerm = documentSearchInput.value.toLowerCase();
                     const filteredDocuments = allDocumentsData.filter(d => 
-                        (d.name || '').toLowerCase().includes(searchTerm) ||
+                        (d.title || '').toLowerCase().includes(searchTerm) || // Use 'title'
                         (d.fileType || '').toLowerCase().includes(searchTerm)
                     );
                     renderDocumentsTable(filteredDocuments);
@@ -2871,15 +2802,17 @@
                         const downloadUrl = await getDownloadURL(fileRef); 
 
                         const documentData = {
-                            name: docName,
+                            title: docName, // Use 'title' for consistency
                             fileType: file.type,
                             filePath: filePath, 
-                            downloadUrl: downloadUrl,
+                            fileUrl: downloadUrl, // Use 'fileUrl' for consistency
                             uploadedBy: auth.currentUser ? auth.currentUser.email : 'Admin',
-                            uploadDate: serverTimestamp() 
+                            uploadedAt: serverTimestamp() // Use 'uploadedAt' for consistency
                         };
 
+                        // Path: artifacts/{appId}/public/data/documents
                         await addDoc(collection(firestore, getPublicCollectionPath('documents')), documentData); 
+                        showConfirmationModal('Document uploaded successfully!', () => {});
                         documentFormModal.style.display = 'none';
                     } catch (error) {
                         console.error("Error uploading file:", error);
@@ -2891,14 +2824,16 @@
                 documentsList.addEventListener('click', async (e) => {
                     if (e.target.classList.contains('delete-document-btn')) {
                         const documentId = e.target.dataset.id;
-                        const filePath = e.target.dataset.path;
+                        const filePath = e.target.dataset.path; // Path to file in Storage
                         showConfirmationModal('Are you sure you want to delete this document?', async () => {
                             try {
                                 if (filePath) {
                                     const fileRefToDelete = ref(storage, filePath); 
                                     await deleteObject(fileRefToDelete); 
                                 }
+                                // Path: artifacts/{appId}/public/data/documents/{docId}
                                 await deleteDoc(doc(firestore, getPublicCollectionPath('documents'), documentId)); 
+                                showConfirmationModal('Document deleted successfully!', () => {});
                             } catch (error) {
                                 console.error("Error deleting document:", error);
                                 showConfirmationModal("Failed to delete document: " + error.message, () => {});
@@ -2915,16 +2850,16 @@
                             let valA = a[sortBy];
                             let valB = b[sortBy];
 
-                            if (sortBy === 'uploadDate') { 
-                                valA = a.uploadDate ? a.uploadDate.toMillis() : 0;
-                                valB = b.uploadDate ? b.uploadDate.toMillis() : 0;
+                            if (sortBy === 'uploadedAt') { // Use 'uploadedAt'
+                                valA = a.uploadedAt ? a.uploadedAt.toMillis() : 0;
+                                valB = b.uploadedAt ? b.uploadedAt.toMillis() : 0;
                             }
                             
                             if (typeof valA === 'string') return valA.localeCompare(valB);
                             return valA - valB;
                         });
-                        allDocumentsData = sortedDocuments;
-                        renderDocumentsTable(allDocumentsData);
+                        // Do not reassign allDocumentsData.
+                        renderDocumentsTable(sortedDocuments);
                     });
                 });
             }
@@ -2974,19 +2909,15 @@
                 const attendanceFormDateDisplay = document.getElementById('attendance-form-date-display');
                 const membersForAttendanceDiv = document.getElementById('members-for-attendance');
 
-                let allAttendanceData = [];
-                let allMembers = []; 
-                let memberIdToEmailMap = {};
-
-                // Fetch all members once for the attendance marking feature
-                // Note: The onSnapshot for this is now in initFirestoreListeners()
+                // Initial render
+                renderAttendanceTable(allAttendanceData);
 
                 const renderAttendanceTable = (attendanceToDisplay) => {
                     attendanceList.innerHTML = '';
                     attendanceToDisplay.forEach(record => {
                         const tr = document.createElement('tr');
                         const date = record.date ? new Date(record.date.seconds * 1000).toLocaleDateString() : 'N/A';
-                        const memberName = allMembers.find(m => m.id === record.memberId)?.name || 'Unknown Member';
+                        const memberName = membersMap[record.memberId] || 'Unknown Member'; // Use memberId
                         tr.innerHTML = `
                             <td>${date}</td>
                             <td>${memberName}</td>
@@ -3018,7 +2949,7 @@
 
                     allAttendanceData.forEach(record => {
                         const date = record.date ? new Date(record.date.seconds * 1000).toLocaleDateString() : 'N/A';
-                        const memberName = allMembers.find(m => m.id === record.memberId)?.name || 'Unknown Member';
+                        const memberName = membersMap[record.memberId] || 'Unknown Member'; // Use memberId
                         csvContent += `${date},"${memberName}","${record.status}"\n`;
                     });
 
@@ -3035,11 +2966,13 @@
                 // New Attendance Record
                 newAttendanceRecordBtn.addEventListener('click', () => {
                     attendanceForm.reset();
-                    document.getElementById('attendance-record-date-input').value = new Date().toISOString().split('T')[0];
-                    attendanceFormDateDisplay.textContent = new Date().toLocaleDateString();
+                    const today = new Date().toISOString().split('T')[0];
+                    document.getElementById('attendance-record-date-input').value = today;
+                    attendanceFormDateDisplay.textContent = new Date(today).toLocaleDateString();
+                    
+                    // Populate member checkboxes
                     membersForAttendanceDiv.innerHTML = '';
-
-                    allMembers.forEach(member => {
+                    allMembersData.forEach(member => { // Use allMembersData
                         const div = document.createElement('div');
                         div.innerHTML = `
                             <input type="checkbox" id="member-${member.id}" name="attendance-member" value="${member.id}" data-name="${member.name}">
@@ -3064,13 +2997,13 @@
                     }
 
                     for (const memberCheckbox of checkedMembers) {
-                        const memberPublicId = memberCheckbox.value;
+                        const memberUserId = memberCheckbox.value;
                         const memberName = memberCheckbox.dataset.name;
-                        const targetUserId = memberPublicId; 
-
+                        
                         try {
-                            await addDoc(collection(firestore, getPrivateCollectionPath(targetUserId, 'attendance')), { 
-                                memberId: memberPublicId,
+                            // Path: artifacts/{appId}/users/{userId}/attendance
+                            await addDoc(collection(firestore, getPrivateCollectionPath(memberUserId, 'attendance')), { 
+                                memberId: memberUserId, // Store the userId here
                                 memberName: memberName, 
                                 date: new Date(recordDate), 
                                 status: 'present',
@@ -3092,7 +3025,9 @@
                         const memberUserId = e.target.dataset.memberId;
                         showConfirmationModal('Are you sure you want to delete this attendance record?', async () => {
                             try {
+                                // Path: artifacts/{appId}/users/{userId}/attendance/{docId}
                                 await deleteDoc(doc(firestore, getPrivateCollectionPath(memberUserId, 'attendance'), recordId)); 
+                                showConfirmationModal('Attendance record deleted successfully!', () => {});
                             } catch (error) {
                                 console.error("Error deleting attendance record:", error);
                                 showConfirmationModal(`Failed to delete attendance record: ${error.message}`, () => {});
@@ -3113,15 +3048,15 @@
                                 valA = a.date ? a.date.toMillis() : 0;
                                 valB = b.date ? b.date.toMillis() : 0;
                             } else if (sortBy === 'memberName') { 
-                                valA = allMembers.find(m => m.id === a.memberId)?.name || 'Unknown';
-                                valB = allMembers.find(m => m.id === b.memberId)?.name || 'Unknown';
+                                valA = membersMap[a.memberId] || 'Unknown'; // Use memberId
+                                valB = membersMap[b.memberId] || 'Unknown'; // Use memberId
                             }
                             
                             if (typeof valA === 'string') return valA.localeCompare(valB);
                             return valA - valB;
                         });
-                        allAttendanceData = sortedAttendance;
-                        renderAttendanceTable(allAttendanceData);
+                        // Do not reassign allAttendanceData.
+                        renderAttendanceTable(sortedAttendance);
                     });
                 });
             }
@@ -3181,22 +3116,8 @@
                 const sendToAllCheckbox = document.getElementById('send-to-all');
                 const notificationMemberSelectsDiv = document.getElementById('notification-member-selects');
                 
-                let allNotificationsData = [];
-                let allMembers = [];
-
-                // Fetch members to populate recipient list
-                // Note: The onSnapshot for this is now in initFirestoreListeners()
-
-                const renderMemberCheckboxes = () => {
-                    notificationMemberSelectsDiv.innerHTML = '';
-                    allMembers.forEach(member => {
-                        const div = document.createElement('div');
-                        div.innerHTML = `
-                            <input type="checkbox" id="notify-member-${member.id}" class="notification-member-checkbox" value="${member.id}" data-email="${member.email}">
-                            <label for="notify-member-${member.id}">${member.name} (${member.email})</label>`;
-                        notificationMemberSelectsDiv.appendChild(div);
-                    });
-                };
+                renderNotificationsTable(allNotificationsData); // Initial render
+                renderMemberDropdowns(allMembersData); // Populate member checkboxes
 
                 const renderNotificationsTable = (notificationsToDisplay) => {
                     notificationsList.innerHTML = '';
@@ -3205,17 +3126,9 @@
                         const dateSent = notification.timestamp ? new Date(notification.timestamp.seconds * 1000).toLocaleString() : 'N/A';
                         
                         let recipientsDisplay = '';
-                        // Fix for notifications recipients array issue if not string
-                        if (notification.recipients === 'all') {
-                            recipientsDisplay = 'All Members';
-                        } else if (Array.isArray(notification.recipients)) {
-                             const recipientNames = notification.recipients.map(memberId => 
-                                allMembers.find(m => m.id === memberId)?.name || `ID: ${memberId}`
-                            ).join(', ');
-                            recipientsDisplay = recipientNames.length > 50 ? recipientNames.substring(0, 50) + '...' : recipientNames;
-                        } else {
-                            recipientsDisplay = 'N/A';
-                        }
+                        // Assuming 'memberId' in notification object refers to the recipient's userId
+                        const recipientName = membersMap[notification.memberId] || `ID: ${notification.memberId}`;
+                        recipientsDisplay = recipientName;
 
 
                         tr.innerHTML = `
@@ -3224,7 +3137,7 @@
                             <td>${recipientsDisplay}</td>
                             <td>${dateSent}</td>
                             <td>
-                                <button class="btn delete-notification-btn" data-id="${notification.id}" data-member-id="${notification.memberUserId}" style="background-color: #ffc107; color: black;">Delete</button>
+                                <button class="btn delete-notification-btn" data-id="${notification.id}" data-member-id="${notification.memberId}" style="background-color: #ffc107; color: black;">Delete</button>
                             </td>`;
                         notificationsList.appendChild(tr);
                     });
@@ -3259,7 +3172,7 @@
                     let recipientIds = []; 
 
                     if (sendToAllCheckbox.checked) {
-                        recipientIds = allMembers.map(member => member.id); 
+                        recipientIds = allMembersData.map(member => member.id); 
                     } else {
                         document.querySelectorAll('.notification-member-checkbox:checked').forEach(cb => {
                             recipientIds.push(cb.value); 
@@ -3279,8 +3192,10 @@
 
                     for (const targetUserId of recipientIds) {
                         try {
+                            // Path: artifacts/{appId}/users/{userId}/notifications
                             await addDoc(collection(firestore, getPrivateCollectionPath(targetUserId, 'notifications')), {
                                 ...baseNotificationData,
+                                memberId: targetUserId // Add memberId to know who it's for
                             });
                         } catch (error) {
                             console.error(`Error sending notification to ${targetUserId}:`, error);
@@ -3295,7 +3210,7 @@
                 notificationsList.addEventListener('click', async (e) => {
                     if (e.target.classList.contains('delete-notification-btn')) {
                         const notificationId = e.target.dataset.id;
-                        const memberUserId = e.target.dataset.memberId;
+                        const memberUserId = e.target.dataset.memberId; // Get the recipient's user ID
                         if (!memberUserId) {
                              console.error("Member User ID not found for deletion.");
                              showConfirmationModal('Cannot delete notification: User ID not found.', () => {});
@@ -3303,7 +3218,9 @@
                         }
                         showConfirmationModal('Are you sure you want to delete this notification record?', async () => {
                             try {
+                                // Path: artifacts/{appId}/users/{userId}/notifications/{docId}
                                 await deleteDoc(doc(firestore, getPrivateCollectionPath(memberUserId, 'notifications'), notificationId)); 
+                                showConfirmationModal('Notification deleted successfully!', () => {});
                             } catch (error) {
                                 console.error("Error deleting notification:", error);
                                 showConfirmationModal(`Failed to delete notification: ${error.message}`, () => {});
@@ -3328,8 +3245,8 @@
                             if (typeof valA === 'string') return valA.localeCompare(valB);
                             return valA - valB;
                         });
-                        allNotificationsData = sortedNotifications;
-                        renderNotificationsTable(allNotificationsData);
+                        // Do not reassign allNotificationsData.
+                        renderNotificationsTable(sortedNotifications);
                     });
                 });
             }
@@ -3345,26 +3262,16 @@
                         <button class="btn btn-primary" id="generate-attendance-report-btn">Attendance Report (CSV)</button>
                     </div>`;
                 
-                // MODIFIED: Fetch members map from 'user_profile' collection group
-                const membersSnapshot = await getDocs(collectionGroup(firestore, 'user_profile')); 
-                const membersMap = {};
-                if (!membersSnapshot.empty) {
-                    membersSnapshot.forEach(doc => membersMap[doc.id] = doc.data().name);
-                } else {
-                    console.warn(`No documents in 'user_profile' collection group for reports. This may affect member name resolution.`);
-                }
-
+                // Member map is already populated by initPrivateCollectionListeners()
+                
                 document.getElementById('generate-financial-report-btn').addEventListener('click', async () => {
                     try {
-                        const contributions = (await getDocs(collectionGroup(firestore, 'contributions'))).docs.map(doc => doc.data()); 
-                        const loans = (await getDocs(collectionGroup(firestore, 'loans'))).docs.map(doc => doc.data()); 
-                        const fines = (await getDocs(collectionGroup(firestore, 'fines'))).docs.map(doc => doc.data()); 
-                        
-                        let totalContributions = contributions.reduce((sum, c) => sum + (c.amount || 0), 0);
-                        let totalLoansIssued = loans.reduce((sum, l) => sum + (l.amount || 0), 0);
-                        let totalLoansRepaid = loans.reduce((sum, l) => sum + (l.repaidAmount || 0), 0);
-                        let totalFinesIssued = fines.reduce((sum, f) => sum + (f.amount || 0), 0);
-                        let totalFinesPaid = fines.filter(f => f.status === 'paid').reduce((sum, f) => sum + (f.amount || 0), 0);
+                        // Use the globally aggregated data arrays
+                        let totalContributions = allContributionsData.reduce((sum, c) => sum + (c.amount || 0), 0);
+                        let totalLoansIssued = allLoansData.reduce((sum, l) => sum + (l.amount || 0), 0);
+                        let totalLoansRepaid = allLoansData.reduce((sum, l) => sum + (l.repaidAmount || 0), 0);
+                        let totalFinesIssued = allFinesData.reduce((sum, f) => sum + (f.amount || 0), 0);
+                        let totalFinesPaid = allFinesData.filter(f => f.status === 'paid').reduce((sum, f) => sum + (f.amount || 0), 0);
 
                         let csvContent = "data:text/csv;charset=utf-8,";
                         csvContent += "Report Type,Amount\n";
@@ -3384,14 +3291,12 @@
 
                 document.getElementById('generate-contributions-summary-btn').addEventListener('click', async () => {
                     try {
-                        const contributionsSnapshot = await getDocs(collectionGroup(firestore, 'contributions')); 
-                        
+                        // Use the globally aggregated data array
                         let csvContent = "data:text/csv;charset=utf-8,";
                         csvContent += "Member Name,Amount,Date,Description\n";
 
-                        contributionsSnapshot.forEach(doc => {
-                            const c = doc.data();
-                            const memberName = membersMap[c.memberId] || 'Unknown';
+                        allContributionsData.forEach(c => {
+                            const memberName = membersMap[c.memberUserId] || 'Unknown'; // Use memberUserId
                             const date = c.date ? new Date(c.date.seconds * 1000).toLocaleDateString() : 'N/A';
                             csvContent += `"${memberName}",${(c.amount || 0).toFixed(2)},"${date}","${c.description || ''}"\n`;
                         });
@@ -3404,14 +3309,12 @@
 
                 document.getElementById('generate-loan-report-btn').addEventListener('click', async () => {
                     try {
-                        const loansSnapshot = await getDocs(collectionGroup(firestore, 'loans')); 
-                        
+                        // Use the globally aggregated data array
                         let csvContent = "data:text/csv;charset=utf-8,";
                         csvContent += "Member Name,Amount,Interest Rate,Due Date,Status,Repaid Amount,Balance\n";
 
-                        loansSnapshot.forEach(doc => {
-                            const l = doc.data();
-                            const memberName = membersMap[l.memberId] || 'Unknown';
+                        allLoansData.forEach(l => {
+                            const memberName = membersMap[l.memberUserId] || 'Unknown'; // Use memberUserId
                             const dueDate = l.dueDate ? new Date(l.dueDate.seconds * 1000).toLocaleDateString() : 'N/A';
                             const balance = ((l.amount || 0) * (1 + (l.interestRate || 0) / 100)) - (l.repaidAmount || 0);
                             csvContent += `"${memberName}",${(l.amount || 0).toFixed(2)},${(l.interestRate || 0)},"${dueDate}","${l.status}",${(l.repaidAmount || 0).toFixed(2)},${balance.toFixed(2)}\n`;
@@ -3425,14 +3328,12 @@
 
                 document.getElementById('generate-fines-report-btn').addEventListener('click', async () => {
                     try {
-                        const finesSnapshot = await getDocs(collectionGroup(firestore, 'fines')); 
-                        
+                        // Use the globally aggregated data array
                         let csvContent = "data:text/csv;charset=utf-8,";
                         csvContent += "Member Name,Reason,Amount,Date Issued,Status\n";
 
-                        finesSnapshot.forEach(doc => {
-                            const f = doc.data();
-                            const memberName = membersMap[f.memberId] || 'Unknown';
+                        allFinesData.forEach(f => {
+                            const memberName = membersMap[f.memberUserId] || 'Unknown'; // Use memberUserId
                             const dateIssued = f.dateIssued ? new Date(f.dateIssued.seconds * 1000).toLocaleDateString() : 'N/A';
                             csvContent += `"${memberName}","${f.reason}",${(f.amount || 0).toFixed(2)},"${dateIssued}","${f.status}"\n`;
                         });
@@ -3445,14 +3346,12 @@
 
                 document.getElementById('generate-attendance-report-btn').addEventListener('click', async () => {
                     try {
-                        const attendanceSnapshot = await getDocs(collectionGroup(firestore, 'attendance')); 
-                        
+                        // Use the globally aggregated data array
                         let csvContent = "data:text/csv;charset=utf-8,";
                         csvContent += "Date,Member Name,Status\n";
 
-                        attendanceSnapshot.forEach(doc => {
-                            const a = doc.data();
-                            const memberName = membersMap[a.memberId] || 'Unknown';
+                        allAttendanceData.forEach(a => {
+                            const memberName = membersMap[a.memberId] || 'Unknown'; // Use memberId
                             const date = a.date ? new Date(a.date.seconds * 1000).toLocaleDateString() : 'N/A';
                             csvContent += `${date},"${memberName}","${a.status}"\n`;
                         });
@@ -3462,7 +3361,6 @@
                         showConfirmationModal(`Failed to generate attendance report: ${error.message}`, () => {});
                     }
                 });
-
 
                 function downloadCSV(content, filename) {
                     const encodedUri = encodeURI(content);
